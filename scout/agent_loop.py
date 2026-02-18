@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Scout Agent Loop - Autonomous coding system without Docker
+Scout Agent Loop - Autonomous coding system
 
 Implements the agent-coding-container pattern:
 - Worker Agent: Implements 1 task per cycle
@@ -8,7 +8,7 @@ Implements the agent-coding-container pattern:
 - Architect Agent: Reviews alignment (every 8 cycles)
 
 Usage:
-    python agent_loop.py --workspace ./workspace-test --cycles 10
+    python agent_loop.py --workspace ./workspace-name --cycles 10
 """
 
 import os
@@ -16,6 +16,7 @@ import json
 import time
 import argparse
 import subprocess
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -32,7 +33,7 @@ class AgentLoop:
     """Main agent loop coordinator"""
 
     def __init__(self, workspace: Path, tick_interval: int = 60):
-        self.workspace = Path(workspace)
+        self.workspace = Path(workspace).absolute()
         self.tick_interval = tick_interval  # Seconds between cycles
         self.state_file = self.workspace / ".state.json"
 
@@ -112,6 +113,7 @@ Tasks:
    - Each task should be 1-2 hours of work
    - Use format: - [ ] Task description (#N)
    - Number tasks sequentially
+   - Break down large requirements into specific implementation steps
 
 2. Create ARCHITECTURE.md with high-level system design
    - Describe directory structure
@@ -121,7 +123,7 @@ Tasks:
 3. Create LEARNINGS.md (initially empty, but include header)
    - This will store patterns/decisions as work progresses
 
-Output your response in this format:
+Output your response in this exact format:
 
 ---TODO.md---
 [TODO content here]
@@ -133,7 +135,7 @@ Output your response in this format:
 [LEARNINGS content here]
 """
 
-        # Call Claude (simulate for now - we'll implement actual call later)
+        # Call Claude
         response = self._call_claude(prompt, max_tokens=4000)
 
         # Parse response and create files
@@ -145,6 +147,24 @@ Output your response in this format:
 
         print("✅ Bootstrap complete!")
         return True
+
+    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
+        """
+        Call Claude API via claude_caller module
+        """
+        from claude_caller import call_claude_api
+        return call_claude_api(prompt, max_tokens=max_tokens)
+
+    def _parse_and_create_files(self, response: str):
+        """Parse agent response and create files"""
+        # Find sections marked with ---FILENAME---
+        pattern = r'---([A-Z_\.a-z]+)---\n(.*?)(?=\n---[A-Z_\.a-z]+---|$)'
+        matches = re.findall(pattern, response, re.DOTALL)
+
+        for filename, content in matches:
+            filepath = self.workspace / filename
+            filepath.write_text(content.strip() + "\n")
+            print(f"   ✅ Created {filename}")
 
     def get_fresh_context(self, agent_type: str) -> str:
         """Load fresh context for agent (NO conversation history)"""
@@ -184,42 +204,17 @@ Output your response in this format:
                 for f in inbox_files:
                     context_parts.append(f"\n## {f.name}\n\n{f.read_text()}")
 
-        # 7. Current code files (agent-specific)
+        # 7. Current code files (agent-specific, limited)
         if agent_type == "worker":
-            # Load only files mentioned in current TODO task
-            context_parts.append("\n# Relevant Code Files\n")
-            # TODO: Smart file loading based on task context
-            # For now, list available files
-            src_files = []
-            for pattern in ["*.py", "tools/*.py", "tests/*.py"]:
-                src_files.extend(self.workspace.glob(pattern))
-
-            if src_files:
-                context_parts.append("\nAvailable files:\n")
-                for f in sorted(src_files)[:10]:  # Limit to 10 files
-                    context_parts.append(f"- {f.relative_to(self.workspace)}\n")
+            context_parts.append("\n# Available Code Files\n")
+            # List Python files but don't load all (keep context small)
+            py_files = list(self.workspace.glob("*.py"))
+            if py_files:
+                context_parts.append("\nPython files in workspace:\n")
+                for f in sorted(py_files)[:5]:  # Limit to 5 files
+                    context_parts.append(f"- {f.name}\n")
 
         return "\n".join(context_parts)
-
-    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
-        """
-        Call Claude API via claude_caller module
-        """
-        from claude_caller import call_claude_api
-        return call_claude_api(prompt, max_tokens=max_tokens)
-
-    def _parse_and_create_files(self, response: str):
-        """Parse agent response and create files"""
-        import re
-
-        # Find sections marked with ---FILENAME---
-        pattern = r'---([A-Z_\.a-z]+)---\n(.*?)(?=\n---[A-Z_\.a-z]+---|$)'
-        matches = re.findall(pattern, response, re.DOTALL)
-
-        for filename, content in matches:
-            filepath = self.workspace / filename
-            filepath.write_text(content.strip() + "\n")
-            print(f"   ✅ Created {filename}")
 
     def run_worker_agent(self, cycle: int):
         """Run Worker Agent - implements ONE task"""
@@ -243,7 +238,7 @@ Instructions:
 Output Format:
 
 ---ACTION---
-[Describe what you're doing]
+[Describe what you're doing - 1-2 sentences]
 
 ---FILES---
 [List files you're modifying/creating]
@@ -251,17 +246,28 @@ Output Format:
 ---CODE---
 filepath: path/to/file.py
 ```python
-[Full file content or git diff]
+[Full file content]
+```
+
+filepath: path/to/another.py
+```python
+[Full file content]
 ```
 
 ---TODO_UPDATE---
 [Updated TODO.md content with task marked [x]]
 
 ---COMMIT_MESSAGE---
-[Git commit message]
+[Git commit message - one line, clear description]
 
----BLOCKER--- (only if blocked)
+---BLOCKER--- (only if blocked, otherwise omit this section)
 [Blocker description if you can't complete task]
+
+IMPORTANT:
+- Only work on ONE task
+- Provide COMPLETE file contents, not diffs
+- Update TODO.md to mark the task [x] complete
+- Write clear, working code
 """
 
         response = self._call_claude(prompt, max_tokens=4000)
@@ -273,8 +279,6 @@ filepath: path/to/file.py
         """Apply Worker Agent changes"""
         print("   Applying changes...")
 
-        import re
-
         # Parse response sections
         sections = {}
         pattern = r'---([A-Z_]+)---\n(.*?)(?=\n---[A-Z_]+---|$)'
@@ -283,9 +287,17 @@ filepath: path/to/file.py
         for section_name, content in matches:
             sections[section_name] = content.strip()
 
+        # Show action
+        if 'ACTION' in sections:
+            print(f"   📝 {sections['ACTION'][:100]}...")
+
         # 1. Write code files
         if 'CODE' in sections:
-            code_blocks = re.findall(r'filepath: (.+?)\n```(?:python)?\n(.*?)```', sections['CODE'], re.DOTALL)
+            code_blocks = re.findall(
+                r'filepath:\s*(.+?)\n```(?:python|bash|json|yaml)?\n(.*?)```',
+                sections['CODE'],
+                re.DOTALL
+            )
             for filepath, code in code_blocks:
                 filepath = filepath.strip()
                 full_path = self.workspace / filepath
@@ -302,7 +314,7 @@ filepath: path/to/file.py
         # 3. Create git commit
         if 'COMMIT_MESSAGE' in sections:
             self._run_command("git add .", cwd=self.workspace)
-            commit_msg = sections['COMMIT_MESSAGE'].replace('"', '\\"')
+            commit_msg = sections['COMMIT_MESSAGE'].replace('"', '\\"')[:100]
             self._run_command(f'git commit -m "{commit_msg}"', cwd=self.workspace)
             print(f"   ✅ Git commit: {sections['COMMIT_MESSAGE'][:50]}...")
 
@@ -332,11 +344,12 @@ Instructions:
    - Inconsistent naming
    - Missing error handling
    - Code duplication
+   - Debug print statements
 3. Refactor/clean as needed
 4. Remove completed tasks from TODO.md (keep active tasks only)
 5. Git commit your cleanup changes
 
-Output similar format to Worker Agent.
+Output same format as Worker Agent (ACTION, FILES, CODE, TODO_UPDATE, COMMIT_MESSAGE)
 """
 
         response = self._call_claude(prompt, max_tokens=3000)
@@ -345,7 +358,8 @@ Output similar format to Worker Agent.
     def _apply_janitor_changes(self, response: str, cycle: int):
         """Apply Janitor Agent changes"""
         print("   Cleaning up...")
-        print("   ⏳ (Simulated)")
+        # Use same parsing logic as Worker
+        self._apply_worker_changes(response, cycle)
 
     def run_architect_agent(self, cycle: int):
         """Run Architect Agent - ensures alignment"""
@@ -365,7 +379,8 @@ Instructions:
 5. Update ARCHITECTURE.md if design evolved
 6. Update TODO.md with refined tasks
 
-Output similar format to Worker Agent.
+Output same format as Worker Agent (ACTION, FILES, CODE, TODO_UPDATE, COMMIT_MESSAGE)
+Focus on TODO.md and ARCHITECTURE.md updates, not code.
 """
 
         response = self._call_claude(prompt, max_tokens=3000)
@@ -374,7 +389,8 @@ Output similar format to Worker Agent.
     def _apply_architect_changes(self, response: str, cycle: int):
         """Apply Architect Agent changes"""
         print("   Reviewing alignment...")
-        print("   ⏳ (Simulated)")
+        # Use same parsing logic as Worker
+        self._apply_worker_changes(response, cycle)
 
     def run_cycle(self, cycle: int, state: Dict):
         """Run one cycle of the agent loop"""
@@ -392,17 +408,23 @@ Output similar format to Worker Agent.
         print(f"   Architect: {'✓' if run_architect else '–'}")
 
         # Run agents
-        if run_worker:
-            self.run_worker_agent(cycle)
-            state["last_worker_cycle"] = cycle
+        try:
+            if run_worker:
+                self.run_worker_agent(cycle)
+                state["last_worker_cycle"] = cycle
 
-        if run_janitor:
-            self.run_janitor_agent(cycle)
-            state["last_janitor_cycle"] = cycle
+            if run_janitor:
+                self.run_janitor_agent(cycle)
+                state["last_janitor_cycle"] = cycle
 
-        if run_architect:
-            self.run_architect_agent(cycle)
-            state["last_architect_cycle"] = cycle
+            if run_architect:
+                self.run_architect_agent(cycle)
+                state["last_architect_cycle"] = cycle
+
+        except Exception as e:
+            print(f"\n❌ Error in cycle {cycle}: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Update state
         state["cycle_count"] = cycle

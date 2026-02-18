@@ -2,12 +2,10 @@
 """
 Claude API Caller for Agent Loop
 
-This module handles calling Claude API with proper error handling,
-retries, and token management.
+Handles calling Claude API with proper error handling and token management.
 """
 
 import os
-import json
 import time
 from typing import Optional
 
@@ -16,7 +14,7 @@ try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass  # dotenv not required if env vars set manually
+    pass
 
 
 def call_claude_api(
@@ -37,19 +35,21 @@ def call_claude_api(
     Returns:
         Response text from Claude
     """
+    # Check for API key
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        print("\n⚠️  ANTHROPIC_API_KEY not set!")
+        print("   Set it: export ANTHROPIC_API_KEY=your-key-here")
+        print("   Using simulation mode...")
+        return _simulated_response(prompt)
+
     try:
         # Try importing anthropic SDK
         from anthropic import Anthropic
     except ImportError:
         print("\n⚠️  anthropic package not installed!")
         print("   Run: pip install anthropic")
-        return _simulated_response(prompt)
-
-    # Check for API key
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("\n⚠️  ANTHROPIC_API_KEY not set!")
-        print("   Set it: export ANTHROPIC_API_KEY=your-key-here")
+        print("   Using simulation mode...")
         return _simulated_response(prompt)
 
     # Call API
@@ -84,16 +84,15 @@ def call_claude_api(
 
     except Exception as e:
         print(f"\n❌ API Error: {e}")
+        print("   Falling back to simulation mode...")
         return _simulated_response(prompt)
 
 
 def _simulated_response(prompt: str) -> str:
     """
     Return simulated response for testing without API.
-
-    This analyzes the prompt and returns reasonable mock data.
     """
-    print("\n🎭 Using simulated response (no API call)")
+    print("\n🎭 Using simulated response (no real API call)")
 
     # Detect if it's bootstrap phase
     if "bootstrap" in prompt.lower() and "TODO.md" in prompt:
@@ -115,162 +114,274 @@ def _simulated_response(prompt: str) -> str:
 
 
 def _simulated_bootstrap_response(prompt: str) -> str:
-    """Simulated bootstrap response"""
-    return """---TODO.md---
-# Data Validator TODO
+    """Simulated bootstrap response based on PRD"""
 
-## Implementation Tasks
-- [ ] Create validator.py skeleton (#1)
-- [ ] Implement validate() function signature (#2)
-- [ ] Add type checking logic (#3)
-- [ ] Add required field checking (#4)
-- [ ] Add error messages (#5)
-- [ ] Create test_validator.py skeleton (#6)
-- [ ] Add test cases for valid data (#7)
-- [ ] Add test cases for missing fields (#8)
-- [ ] Add test cases for wrong types (#9)
-- [ ] Create README.md with examples (#10)
+    # Extract industry/goal from prompt if possible
+    goal = "Build FDD scrapers"
+    if "Wisconsin" in prompt:
+        goal = "Build Wisconsin FDD scraper"
+    elif "5 scrapers" in prompt or "five scrapers" in prompt:
+        goal = "Build 5-scraper FDD system"
+
+    return f"""---TODO.md---
+# Scout FDD Scraper Implementation - TODO
+
+## Phase 1: Wisconsin FDD Scraper (Priority)
+- [ ] Create tools/wisconsin_fdd.py skeleton (#1)
+- [ ] Add Chrome driver setup with anti-detection (#2)
+- [ ] Implement ASP.NET form filling (#3)
+- [ ] Parse GridView results table (#4)
+- [ ] Extract franchise metadata (#5)
+- [ ] Implement PDF download (#6)
+- [ ] Implement Item 19 extraction (#7)
+- [ ] Add caching layer (90-day TTL) (#8)
+- [ ] Create test_wisconsin_fdd.py (#9)
+- [ ] Test with validation queries (#10)
+
+## Phase 2: NASAA FRED Scraper
+- [ ] Create tools/nasaa_fred_fdd.py skeleton (#11)
+- [ ] Implement multi-state search (#12)
+- [ ] Add state provenance tracking (#13)
+- [ ] Test across 7 states (#14)
+
+## Phase 3: California FDD Scraper
+- [ ] Create tools/california_fdd.py skeleton (#15)
+- [ ] Handle slow database (7-10s waits) (#16)
+- [ ] Implement pagination (#17)
+- [ ] Add document type filtering (#18)
+
+## Phase 4: FDD Aggregator
+- [ ] Create tools/fdd_aggregator.py (#19)
+- [ ] Implement search_all method (#20)
+- [ ] Add deduplication logic (#21)
+- [ ] Add coverage statistics (#22)
+
+## Phase 5: BizBuySell Enhancement
+- [ ] Enhance tools/bizbuysell_tool.py (#23)
+- [ ] Add error handling (#24)
+- [ ] Test with real queries (#25)
 
 ---ARCHITECTURE.md---
-# Data Validator Architecture
+# Scout FDD Scraper System - Architecture
 
 ## Goal
-Simple Python module for validating dictionaries against type schemas.
+{goal}
 
-## Structure
+## System Overview
+
 ```
-workspace-test/
-├── validator.py        (core validation logic)
-├── test_validator.py   (test suite)
-└── README.md           (documentation)
+User Query → FDD Aggregator → Wisconsin/California/NASAA Scrapers → Cache → JSON
 ```
 
-## Design
-- Single `validate(data, schema)` function
-- Schema defines expected types for each field
-- Returns True/False with optional error messages
-- No external dependencies (pure Python)
+## Components
 
-## Patterns
-- Type hints for clarity
-- Comprehensive docstrings
-- pytest for testing
+### 1. Wisconsin FDD Scraper (tools/wisconsin_fdd.py)
+- Inherits from Tool base class
+- Selenium + BeautifulSoup
+- ASP.NET GridView parsing
+- Direct PDF downloads
+- 90-day cache TTL
+
+### 2. NASAA FRED Scraper (tools/nasaa_fred_fdd.py)
+- Multi-state coverage (7 states)
+- State provenance tracking
+- Same Tool pattern
+
+### 3. California Scraper (tools/california_fdd.py)
+- Largest state database
+- Pagination support
+- Document filtering
+
+### 4. FDD Aggregator (tools/fdd_aggregator.py)
+- Unified query interface
+- Cross-state deduplication
+- Coverage statistics
+
+## Design Patterns
+
+**Tool Pattern:**
+- All scrapers inherit from tools/base.py
+- Consistent search() API
+- 90-day caching
+- Clean JSON responses
+
+**Reference Implementation:**
+- tools/minnesota_fdd.py (449 lines)
+- Copy structure, adapt specifics
+
+**Anti-Detection:**
+- Chrome CDP overrides
+- User-agent spoofing
+- Rate limiting (2-5s waits)
 
 ---LEARNINGS.md---
-# Data Validator - Learnings
+# Scout FDD Scraper - Learnings
 
-## Patterns & Decisions
+## Project Context
+Building multi-state FDD scraper system for SMB due diligence
 
+## Reference Implementation
+tools/minnesota_fdd.py (449 lines) - GOLD STANDARD
+Copy this structure for all new scrapers
+
+## Key Patterns
 (Will be updated as implementation progresses)
 """
 
 
 def _simulated_worker_response(prompt: str) -> str:
     """Simulated worker response"""
-    # Detect current task from TODO
-    if "Create validator.py skeleton" in prompt or "task #1" in prompt.lower():
-        return """---ACTION---
-Creating validator.py skeleton with basic structure
+    return """---ACTION---
+Creating wisconsin_fdd.py skeleton following minnesota_fdd.py pattern
 
 ---FILES---
-- validator.py (create)
+- tools/wisconsin_fdd.py (create)
 
 ---CODE---
-filepath: validator.py
+filepath: tools/wisconsin_fdd.py
 ```python
-\"\"\"Simple data validator module\"\"\"
+\"\"\"Wisconsin FDD Scraper\"\"\"
 
-from typing import Dict, Any, Type
+from pathlib import Path
+from typing import Dict, Any
+from datetime import datetime
+
+try:
+    from .base import Tool
+except ImportError:
+    from base import Tool
 
 
-def validate(data: Dict[str, Any], schema: Dict[str, Type]) -> bool:
-    \"\"\"
-    Validate data dictionary against schema.
+class WisconsinFDDScraper(Tool):
+    \"\"\"Search Wisconsin DFI for FDD documents\"\"\"
 
-    Args:
-        data: Dictionary to validate
-        schema: Schema with field names -> expected types
+    BASE_URL = "https://apps.dfi.wi.gov/apps/FranchiseSearch/MainSearch.aspx"
+    CACHE_TTL_DAYS = 90
 
-    Returns:
-        True if valid, False otherwise
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.output_dir = Path("outputs/fdds/wisconsin")
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    Example:
-        >>> schema = {"name": str, "age": int}
-        >>> validate({"name": "John", "age": 30}, schema)
-        True
-    \"\"\"
-    # TODO: Implement validation logic
-    pass
+    def search(
+        self,
+        industry: str,
+        max_results: int = 10,
+        download_pdfs: bool = True,
+        extract_item19: bool = True,
+        use_cache: bool = True
+    ) -> Dict[str, Any]:
+        \"\"\"
+        Search for Wisconsin FDD documents.
+
+        Args:
+            industry: Business type (e.g., "car wash")
+            max_results: Max FDD documents to return
+            download_pdfs: Whether to download PDF files
+            extract_item19: Whether to extract Item 19 text
+            use_cache: Whether to use cached results
+
+        Returns:
+            Dict with FDD search results
+        \"\"\"
+        # TODO: Implement search logic
+        pass
 ```
 
 ---TODO_UPDATE---
-# Data Validator TODO
+# Scout FDD Scraper Implementation - TODO
 
-## Implementation Tasks
-- [x] Create validator.py skeleton (#1)
-- [ ] Implement validate() function signature (#2)
-- [ ] Add type checking logic (#3)
-- [ ] Add required field checking (#4)
-- [ ] Add error messages (#5)
-- [ ] Create test_validator.py skeleton (#6)
-- [ ] Add test cases for valid data (#7)
-- [ ] Add test cases for missing fields (#8)
-- [ ] Add test cases for wrong types (#9)
-- [ ] Create README.md with examples (#10)
+## Phase 1: Wisconsin FDD Scraper (Priority)
+- [x] Create tools/wisconsin_fdd.py skeleton (#1)
+- [ ] Add Chrome driver setup with anti-detection (#2)
+- [ ] Implement ASP.NET form filling (#3)
+- [ ] Parse GridView results table (#4)
+- [ ] Extract franchise metadata (#5)
+- [ ] Implement PDF download (#6)
+- [ ] Implement Item 19 extraction (#7)
+- [ ] Add caching layer (90-day TTL) (#8)
+- [ ] Create test_wisconsin_fdd.py (#9)
+- [ ] Test with validation queries (#10)
+
+## Phase 2: NASAA FRED Scraper
+- [ ] Create tools/nasaa_fred_fdd.py skeleton (#11)
+- [ ] Implement multi-state search (#12)
+- [ ] Add state provenance tracking (#13)
+- [ ] Test across 7 states (#14)
+
+## Phase 3: California FDD Scraper
+- [ ] Create tools/california_fdd.py skeleton (#15)
+- [ ] Handle slow database (7-10s waits) (#16)
+- [ ] Implement pagination (#17)
+- [ ] Add document type filtering (#18)
+
+## Phase 4: FDD Aggregator
+- [ ] Create tools/fdd_aggregator.py (#19)
+- [ ] Implement search_all method (#20)
+- [ ] Add deduplication logic (#21)
+- [ ] Add coverage statistics (#22)
+
+## Phase 5: BizBuySell Enhancement
+- [ ] Enhance tools/bizbuysell_tool.py (#23)
+- [ ] Add error handling (#24)
+- [ ] Test with real queries (#25)
 
 ---COMMIT_MESSAGE---
-Create validator.py skeleton (#1)
-"""
-
-    return """---ACTION---
-Simulated worker action - implement actual Claude API
-
----COMMIT_MESSAGE---
-Simulated worker commit
+Create WisconsinFDDScraper skeleton (#1)
 """
 
 
 def _simulated_janitor_response(prompt: str) -> str:
     """Simulated janitor response"""
     return """---ACTION---
-Reviewing code for cleanup opportunities
-
-Found:
-- No unused imports yet
-- Code structure looks clean
-
-Updating TODO.md to remove completed tasks.
+Reviewing code for cleanup opportunities. Code looks clean so far.
 
 ---TODO_UPDATE---
-# Data Validator TODO
+# Scout FDD Scraper Implementation - TODO
 
-## Implementation Tasks
-- [ ] Implement validate() function signature (#2)
-- [ ] Add type checking logic (#3)
-- [ ] Add required field checking (#4)
-- [ ] Add error messages (#5)
-- [ ] Create test_validator.py skeleton (#6)
-- [ ] Add test cases for valid data (#7)
-- [ ] Add test cases for missing fields (#8)
-- [ ] Add test cases for wrong types (#9)
-- [ ] Create README.md with examples (#10)
+## Phase 1: Wisconsin FDD Scraper (Priority)
+- [ ] Add Chrome driver setup with anti-detection (#2)
+- [ ] Implement ASP.NET form filling (#3)
+- [ ] Parse GridView results table (#4)
+- [ ] Extract franchise metadata (#5)
+- [ ] Implement PDF download (#6)
+- [ ] Implement Item 19 extraction (#7)
+- [ ] Add caching layer (90-day TTL) (#8)
+- [ ] Create test_wisconsin_fdd.py (#9)
+- [ ] Test with validation queries (#10)
+
+## Phase 2: NASAA FRED Scraper
+- [ ] Create tools/nasaa_fred_fdd.py skeleton (#11)
+- [ ] Implement multi-state search (#12)
+- [ ] Add state provenance tracking (#13)
+- [ ] Test across 7 states (#14)
+
+## Phase 3: California FDD Scraper
+- [ ] Create tools/california_fdd.py skeleton (#15)
+- [ ] Handle slow database (7-10s waits) (#16)
+- [ ] Implement pagination (#17)
+- [ ] Add document type filtering (#18)
+
+## Phase 4: FDD Aggregator
+- [ ] Create tools/fdd_aggregator.py (#19)
+- [ ] Implement search_all method (#20)
+- [ ] Add deduplication logic (#21)
+- [ ] Add coverage statistics (#22)
+
+## Phase 5: BizBuySell Enhancement
+- [ ] Enhance tools/bizbuysell_tool.py (#23)
+- [ ] Add error handling (#24)
+- [ ] Test with real queries (#25)
 
 ---COMMIT_MESSAGE---
-Janitor: Clean up completed tasks
+Janitor: Clean up completed tasks from TODO
 """
 
 
 def _simulated_architect_response(prompt: str) -> str:
     """Simulated architect response"""
     return """---ACTION---
-Reviewing alignment with PRD
-
-Progress looks good:
-- Task #1 completed
-- Following simple architecture
-- On track with requirements
-
-No major changes needed at this time.
+Reviewing alignment with PRD. Progress on track, task breakdown looks good.
 
 ---COMMIT_MESSAGE---
 Architect: Review alignment (cycle 8)

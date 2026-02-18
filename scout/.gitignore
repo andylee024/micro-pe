@@ -16,8 +16,12 @@ outputs/*
 # Keep experiment data tracked
 !experiments/
 
+# Ralph — raw Claude output logs (can be large, not useful to commit)
+.ralph/runs/
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+workspace-5-scrapers/

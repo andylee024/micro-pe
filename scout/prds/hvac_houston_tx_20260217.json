@@ -1,0 +1,88 @@
+{
+  "project": "Scout \u2014 HVAC in Houston, TX",
+  "industry": "HVAC",
+  "location": "Houston, TX",
+  "created_at": "2026-02-18T07:51:55.929942+00:00",
+  "stories": [
+    {
+      "id": "S-001",
+      "title": "Build business universe: HVAC in Houston, TX",
+      "description": "Use the Google Maps tool to find all HVAC businesses in Houston, TX. Run: python main.py universe \"HVAC\" \"Houston, TX\"\nSave the full results list to the output file.",
+      "status": "open",
+      "depends_on": [],
+      "output_file": "outputs/universe/hvac_houston_tx_20260217.json"
+    },
+    {
+      "id": "S-002",
+      "title": "Build financial benchmarks: HVAC",
+      "description": "Scrape BizBuySell to build financial benchmarks for HVAC businesses. Run: python main.py benchmarks \"HVAC\" 20\nExtract and save: median revenue, cash flow, margin, EBITDA multiple.",
+      "status": "open",
+      "depends_on": [],
+      "output_file": "outputs/benchmarks/hvac_houston_tx_20260217.json"
+    },
+    {
+      "id": "S-003",
+      "title": "Calibrate universe with benchmarks",
+      "description": "Read the universe from S-001 and benchmarks from S-002. Apply benchmarks to estimate revenue, EBITDA, and enterprise value for each business. Use utils/financials.py apply_benchmarks() and rank_businesses(). Output the full ranked list (all businesses, not just top 20).",
+      "status": "open",
+      "depends_on": [
+        "S-001",
+        "S-002"
+      ],
+      "output_file": "outputs/calibrated/hvac_houston_tx_20260217.json"
+    },
+    {
+      "id": "S-004",
+      "title": "Collect UCC filings for top 20",
+      "description": "Read the calibrated list from S-003. Take the top 20 by estimated value.\nFor each business, search the relevant state SOS UCC database for filings. Start with the state from the business address.\nRecord per filing: filing_number, filing_date, lapse_date, status (active/lapsed/terminated), secured_party_name, collateral_description.\nFlag: is_sba_backed (secured party contains 'SBA' or 'Small Business'), is_all_assets ('all assets' in collateral).\nUseful starting points: state SOS websites vary \u2014 try searching \"<state> UCC search\" or use opencorporates.com as a fallback.",
+      "status": "open",
+      "depends_on": [
+        "S-003"
+      ],
+      "output_file": "outputs/signals/ucc_hvac_houston_tx_20260217.json"
+    },
+    {
+      "id": "S-005",
+      "title": "Collect SBA loan data for top 20",
+      "description": "Read the calibrated list from S-003. Take the top 20 by estimated value.\nSearch SBA loan records at: https://data.sba.gov/dataset/7-a-504-foia\nOr use the SBA FOIA bulk CSV files (7a and 504 approvals are public).\nMatch by: borrower_name (fuzzy) + borrower_city + borrower_state.\nRecord per loan: loan_number, program (7a/504), approval_date, approved_amount, term_months, bank_name, jobs_supported, naics_code.\nNote: SBA data is available in bulk CSV \u2014 download and search locally rather than scraping the website.",
+      "status": "open",
+      "depends_on": [
+        "S-003"
+      ],
+      "output_file": "outputs/signals/sba_hvac_houston_tx_20260217.json"
+    },
+    {
+      "id": "S-006",
+      "title": "Collect job postings for top 20",
+      "description": "Read the calibrated list from S-003. Take the top 20 by estimated value.\nFor each business, search for active job postings:\n  1. Search Indeed: https://www.indeed.com/jobs?q=<company_name>&l=<city>\n  2. Check the business website careers page if available\n  3. Search LinkedIn if accessible\nRecord per posting: job_title, posted_date, salary_min, salary_max, pay_type (hourly/salary), is_active.\nCategorize each role: technician / sales / management / admin / driver / other.\nKey insight: hiring = growth signal; zero postings = stable or stagnant.",
+      "status": "open",
+      "depends_on": [
+        "S-003"
+      ],
+      "output_file": "outputs/signals/jobs_hvac_houston_tx_20260217.json"
+    },
+    {
+      "id": "S-007",
+      "title": "Score and rank all businesses",
+      "description": "Read calibrated businesses from S-003 and signals from S-004, S-005, S-006.\nCompute an acquisition attractiveness score (0\u2013100) for each business.\n\nScoring weights:\n  40%  Estimated enterprise value (scaled within industry range)\n  20%  UCC signals: active SBA loan = positive; tax liens = negative;        'all assets' collateral = business has real assets\n  20%  SBA loan history: has 7(a)/504 = bankable, established\n  20%  Job posting activity: hiring = growth; zero postings = stable\n\nOutput all businesses with scores and a brief signal_summary per business.",
+      "status": "open",
+      "depends_on": [
+        "S-003",
+        "S-004",
+        "S-005",
+        "S-006"
+      ],
+      "output_file": "outputs/scored/hvac_houston_tx_20260217.json"
+    },
+    {
+      "id": "S-008",
+      "title": "Generate acquisition target report",
+      "description": "Read scored businesses from S-007. Generate a Markdown report.\n\nReport structure:\n  1. Market Summary: total businesses found, estimated market size,      typical valuation range, median revenue/margin\n  2. Top 10 Targets: for each \u2014 name, location, estimated financials,      score breakdown, UCC/SBA/jobs signals, recommended outreach angle\n  3. Data Notes: confidence levels, data gaps, methodology\n\nThe report should be ready to share with a potential investor or acquirer.",
+      "status": "open",
+      "depends_on": [
+        "S-007"
+      ],
+      "output_file": "outputs/reports/hvac_houston_tx_20260217.md"
+    }
+  ]
+}
