@@ -1,0 +1,24 @@
+# Google Maps API
+googlemaps==4.10.0
+
+# Web scraping - Working solution (bypasses bot detection)
+undetected-chromedriver==3.5.5
+beautifulsoup4==4.12.2
+selenium==4.15.0
+
+# Web scraping - Async HTTP (blocked by BizBuySell Cloudflare)
+# aiohttp==3.9.1
+# aiolimiter==1.1.0
+
+# Web scraping - Fallback driver manager
+webdriver-manager==4.0.1
+
+# Utilities
+python-dotenv==1.0.0
+
+# FDD Extraction POC
+pymupdf==1.24.13
+anthropic==0.42.0
+instructor==1.8.1
+pydantic==2.10.5
+requests==2.32.3

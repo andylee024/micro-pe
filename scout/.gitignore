@@ -1,0 +1,23 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment
+.env
+
+# Output files (production results)
+outputs/*
+!outputs/.gitkeep
+
+# Keep experiment data tracked
+!experiments/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
