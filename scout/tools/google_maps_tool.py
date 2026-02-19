@@ -18,7 +18,7 @@ load_dotenv()
 class GoogleMapsTool(Tool):
     """Search for businesses using Google Maps API"""
 
-    CACHE_TTL_DAYS = 7  # Cache for 1 week
+    CACHE_TTL_DAYS = 90  # Cache for 90 days
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
