@@ -1,30 +1,31 @@
 """
 Wisconsin FDD Scraper
 
-Scrapes Franchise Disclosure Documents (FDDs) from Wisconsin Department of Financial Institutions.
-Follows the pattern established in tools/minnesota_fdd.py.
-
+Scrapes Franchise Disclosure Documents from Wisconsin Department of Financial Institutions.
 URL: https://apps.dfi.wi.gov/apps/FranchiseSearch/MainSearch.aspx
+
+Follows the pattern from tools/minnesota_fdd.py (reference implementation).
 """
 
-import json
 import os
-import random
 import time
+import random
+import json
+import hashlib
 from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin
 
-import httpx
-from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+import httpx
+import fitz  # PyMuPDF
 
 from tools.base import Tool
 
@@ -34,217 +35,245 @@ class WisconsinFDDScraper(Tool):
 
     BASE_URL = "https://apps.dfi.wi.gov/apps/FranchiseSearch/MainSearch.aspx"
     CACHE_TTL_DAYS = 90
-
+    
     def __init__(self):
         super().__init__()
         self.cache_dir = Path("cache/wisconsin_fdd")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.pdf_dir = self.cache_dir / "pdfs"
-        self.pdf_dir.mkdir(exist_ok=True)
+        
+        self.pdf_dir = Path("data/wisconsin_fdds")
+        self.pdf_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_chrome_driver(self):
-        """
-        Initialize Chrome driver with anti-detection measures.
-        Copied from minnesota_fdd.py pattern.
-        """
-        options = Options()
-        options.add_argument("--headless=new")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option("useAutomationExtension", False)
-        options.add_argument(
-            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        )
+    def _get_cache_key(self, industry: str, max_results: int, download_pdfs: bool, extract_item19: bool) -> str:
+        """Generate cache key from search parameters"""
+        params = f"{industry}_{max_results}_{download_pdfs}_{extract_item19}"
+        return hashlib.md5(params.encode()).hexdigest()
 
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=options)
-
-        # Anti-detection: Override webdriver property
-        driver.execute_cdp_cmd(
-            "Page.addScriptToEvaluateOnNewDocument",
-            {
-                "source": """
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                });
-            """
-            },
-        )
-
-        return driver
-
-    def _get_cache_key(self, industry: str, max_results: int) -> str:
-        """Generate cache key for search query"""
-        safe_industry = industry.replace(" ", "_").lower()
-        return f"wisconsin_{safe_industry}_{max_results}"
-
-    def _is_cache_valid(self, cache_file: Path) -> bool:
-        """Check if cache file exists and is within TTL"""
-        if not cache_file.exists():
-            return False
-
-        # Check file age
-        file_time = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        age = datetime.now() - file_time
-        return age < timedelta(days=self.CACHE_TTL_DAYS)
+    def _get_cache_path(self, cache_key: str) -> Path:
+        """Get cache file path for given key"""
+        return self.cache_dir / f"{cache_key}.json"
 
     def _load_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
         """Load cached results if valid"""
-        cache_file = self.cache_dir / f"{cache_key}.json"
-        if self._is_cache_valid(cache_file):
-            with open(cache_file, "r") as f:
-                return json.load(f)
-        return None
+        cache_path = self._get_cache_path(cache_key)
+        
+        if not cache_path.exists():
+            return None
+        
+        try:
+            with open(cache_path, 'r') as f:
+                cached_data = json.load(f)
+            
+            # Check if cache is still valid
+            cache_date = datetime.fromisoformat(cached_data['search_date'])
+            age_days = (datetime.now() - cache_date).days
+            
+            if age_days < self.CACHE_TTL_DAYS:
+                print(f"✓ Using cached results (age: {age_days} days)")
+                return cached_data
+            else:
+                print(f"⚠ Cache expired (age: {age_days} days)")
+                return None
+                
+        except Exception as e:
+            print(f"⚠ Cache load error: {e}")
+            return None
 
     def _save_cache(self, cache_key: str, data: Dict[str, Any]):
         """Save results to cache"""
-        cache_file = self.cache_dir / f"{cache_key}.json"
-        with open(cache_file, "w") as f:
-            json.dump(data, f, indent=2)
+        cache_path = self._get_cache_path(cache_key)
+        
+        try:
+            with open(cache_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f"✓ Cached results to {cache_path}")
+        except Exception as e:
+            print(f"⚠ Cache save error: {e}")
 
-    def _fill_search_form(self, driver, industry: str):
-        """
-        Fill and submit the Wisconsin FDD search form.
-        ASP.NET form with ctl00_ prefixed IDs.
-        """
-        # Navigate to search page
+    def _setup_chrome_driver(self) -> webdriver.Chrome:
+        """Setup Chrome driver with anti-detection measures"""
+        chrome_options = Options()
+        chrome_options.add_argument('--headless=new')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+        
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # Anti-detection: Override navigator.webdriver
+        driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+            'source': '''
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                })
+            '''
+        })
+        
+        return driver
+
+    def _fill_search_form(self, driver: webdriver.Chrome, industry: str):
+        """Fill and submit the Wisconsin FDD search form"""
+        # Navigate to URL
         driver.get(self.BASE_URL)
         time.sleep(2)
-
+        
         # Wait for search input to be present
         wait = WebDriverWait(driver, 10)
         search_input = wait.until(
-            EC.presence_of_element_located(
-                (By.ID, "ctl00_MainContent_txtSearch")
-            )
+            EC.presence_of_element_located((By.ID, "ctl00_MainContent_txtSearch"))
         )
-
+        
         # Fill search form
         search_input.clear()
         search_input.send_keys(industry)
-
+        
         # Click search button
-        search_button = driver.find_element(
-            By.ID, "ctl00_MainContent_btnSearch"
-        )
+        search_button = driver.find_element(By.ID, "ctl00_MainContent_btnSearch")
         search_button.click()
-
+        
         # Wait for results to load
-        time.sleep(random.uniform(3.0, 5.0))
+        time.sleep(3)
 
-    def _parse_gridview_results(
-        self, driver, max_results: int
-    ) -> List[Dict[str, Any]]:
-        """
-        Parse ASP.NET GridView results table.
-
-        Table structure:
-        Cell[0] = Franchise Name
-        Cell[1] = Document ID
-        Cell[2] = PDF Link (<a> tag with href)
-        Cell[3] = Filing Year
-        """
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-
+    def _parse_results(self, driver: webdriver.Chrome, max_results: int) -> List[Dict[str, Any]]:
+        """Parse search results from GridView table"""
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        
         # Find results table
-        table = soup.find("table", id="ctl00_MainContent_gvResults")
+        table = soup.find('table', id='ctl00_MainContent_gvResults')
         if not table:
+            print("⚠ No results table found")
             return []
-
+        
+        # Find all result rows
+        rows = table.find_all('tr', class_='GridRowStyle')
+        if not rows:
+            # Try alternate row class
+            rows = table.find_all('tr', class_='GridAlternatingRowStyle')
+        
         results = []
-        rows = table.find_all("tr", class_="GridRowStyle")
-
         for row in rows[:max_results]:
             try:
-                cells = row.find_all("td")
+                cells = row.find_all('td')
                 if len(cells) < 4:
                     continue
-
-                # Extract data from cells
+                
                 franchise_name = cells[0].get_text(strip=True)
                 document_id = cells[1].get_text(strip=True)
-
-                # Get PDF link
-                pdf_link_tag = cells[2].find("a")
-                if pdf_link_tag and pdf_link_tag.get("href"):
-                    pdf_url = urljoin(self.BASE_URL, pdf_link_tag["href"])
+                
+                # Extract PDF link
+                pdf_link_tag = cells[2].find('a')
+                if pdf_link_tag and pdf_link_tag.get('href'):
+                    pdf_url = pdf_link_tag['href']
+                    # Make absolute URL if relative
+                    if pdf_url.startswith('/'):
+                        pdf_url = f"https://apps.dfi.wi.gov{pdf_url}"
+                    elif not pdf_url.startswith('http'):
+                        pdf_url = f"https://apps.dfi.wi.gov/apps/FranchiseSearch/{pdf_url}"
                 else:
                     pdf_url = None
-
-                # Get filing year
+                
                 year_text = cells[3].get_text(strip=True)
                 try:
-                    fdd_year = int(year_text)
-                except (ValueError, TypeError):
-                    fdd_year = None
-
+                    year = int(year_text)
+                except ValueError:
+                    year = None
+                
                 result = {
-                    "franchise_name": franchise_name,
-                    "document_id": document_id,
-                    "pdf_url": pdf_url,
-                    "fdd_year": fdd_year,
-                    "source_url": self.BASE_URL,
+                    'franchise_name': franchise_name,
+                    'document_id': document_id,
+                    'pdf_url': pdf_url,
+                    'fdd_year': year,
+                    'source_url': self.BASE_URL
                 }
-
+                
                 results.append(result)
-
+                
             except Exception as e:
-                print(f"⚠️  Error parsing row: {e}")
+                print(f"⚠ Error parsing row: {e}")
                 continue
-
+        
         return results
 
     def _download_pdf(self, pdf_url: str, franchise_name: str, document_id: str) -> Optional[str]:
-        """
-        Download PDF file via direct HTTP request.
-        Wisconsin allows direct downloads (simpler than Minnesota's session-based approach).
-
-        Args:
-            pdf_url: URL to download PDF from
-            franchise_name: Name of franchise (for filename)
-            document_id: Document ID (for filename)
-
-        Returns:
-            Path to downloaded PDF file, or None if download failed
-        """
+        """Download PDF from URL"""
+        if not pdf_url:
+            return None
+        
         try:
             # Create safe filename
-            safe_name = "".join(
-                c for c in franchise_name if c.isalnum() or c in (" ", "-", "_")
-            ).strip()
-            safe_name = safe_name.replace(" ", "_")
+            safe_name = "".join(c for c in franchise_name if c.isalnum() or c in (' ', '-', '_')).strip()
+            safe_name = safe_name.replace(' ', '_')
             filename = f"{safe_name}_{document_id}.pdf"
             filepath = self.pdf_dir / filename
-
+            
             # Skip if already downloaded
             if filepath.exists():
-                print(f"✓ PDF already cached: {filename}")
+                print(f"✓ PDF already exists: {filename}")
                 return str(filepath)
-
-            # Download PDF with httpx
-            print(f"⬇️  Downloading PDF: {filename}")
-            with httpx.Client(follow_redirects=True, timeout=30.0) as client:
-                response = client.get(pdf_url)
-                response.raise_for_status()
-
-                # Save PDF
-                with open(filepath, "wb") as f:
+            
+            # Download PDF
+            print(f"⬇ Downloading PDF: {filename}")
+            response = httpx.get(pdf_url, follow_redirects=True, timeout=30.0)
+            
+            if response.status_code == 200:
+                with open(filepath, 'wb') as f:
                     f.write(response.content)
-
-                print(f"✓ Downloaded: {filename} ({len(response.content)} bytes)")
+                print(f"✓ Downloaded: {filename}")
                 return str(filepath)
-
-        except httpx.HTTPStatusError as e:
-            print(f"❌ HTTP error downloading PDF: {e.response.status_code}")
-            return None
-        except httpx.TimeoutException:
-            print(f"❌ Timeout downloading PDF from {pdf_url}")
-            return None
+            else:
+                print(f"⚠ Download failed: {response.status_code}")
+                return None
+                
         except Exception as e:
-            print(f"❌ Error downloading PDF: {e}")
+            print(f"⚠ PDF download error: {e}")
+            return None
+
+    def _extract_item19(self, pdf_path: str) -> Optional[Dict[str, Any]]:
+        """Extract Item 19 (Financial Performance Representations) from FDD PDF"""
+        if not pdf_path or not os.path.exists(pdf_path):
+            return None
+        
+        try:
+            doc = fitz.open(pdf_path)
+            item19_text = []
+            found_item19 = False
+            
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                text = page.get_text()
+                
+                # Look for Item 19 header
+                if not found_item19 and 'ITEM 19' in text.upper():
+                    found_item19 = True
+                    item19_text.append(text)
+                    continue
+                
+                # If we found Item 19, keep collecting until Item 20
+                if found_item19:
+                    if 'ITEM 20' in text.upper():
+                        break
+                    item19_text.append(text)
+            
+            doc.close()
+            
+            if item19_text:
+                full_text = '\n'.join(item19_text)
+                return {
+                    'has_item_19': True,
+                    'item_19_text': full_text[:5000],  # Limit size
+                    'item_19_length': len(full_text)
+                }
+            else:
+                return {
+                    'has_item_19': False,
+                    'item_19_text': None,
+                    'item_19_length': 0
+                }
+                
+        except Exception as e:
+            print(f"⚠ Item 19 extraction error: {e}")
             return None
 
     def search(
@@ -253,128 +282,97 @@ class WisconsinFDDScraper(Tool):
         max_results: int = 10,
         download_pdfs: bool = True,
         extract_item19: bool = True,
-        use_cache: bool = True,
+        use_cache: bool = True
     ) -> Dict[str, Any]:
         """
         Search Wisconsin DFI for FDD documents.
-
+        
         Args:
-            industry: Industry or franchise name to search for
+            industry: Industry keyword to search for
             max_results: Maximum number of results to return
             download_pdfs: Whether to download PDF files
-            extract_item19: Whether to extract Item 19 from PDFs (requires download_pdfs=True)
+            extract_item19: Whether to extract Item 19 from PDFs
             use_cache: Whether to use cached results
-
+            
         Returns:
-            Dictionary with search results:
-            {
-                "source": "wisconsin_dfi",
-                "search_date": "2026-02-17T...",
-                "industry": "car wash",
-                "total_found": 12,
-                "results": [...]
-            }
+            Dictionary containing search results and metadata
         """
         # Check cache first
-        cache_key = self._get_cache_key(industry, max_results)
+        cache_key = self._get_cache_key(industry, max_results, download_pdfs, extract_item19)
+        
         if use_cache:
-            cached = self._load_cache(cache_key)
-            if cached:
-                print(f"✓ Using cached results for '{industry}'")
-                return cached
-
+            cached_data = self._load_cache(cache_key)
+            if cached_data:
+                return cached_data
+        
+        print(f"🔍 Searching Wisconsin DFI for: {industry}")
+        
         driver = None
         try:
-            print(f"🔍 Searching Wisconsin DFI for '{industry}'...")
-
-            # Initialize Chrome driver
-            driver = self._get_chrome_driver()
-
-            # Fill and submit search form
+            # Setup driver
+            driver = self._setup_chrome_driver()
+            
+            # Fill search form
             self._fill_search_form(driver, industry)
-
+            
             # Parse results
-            results = self._parse_gridview_results(driver, max_results)
-
+            results = self._parse_results(driver, max_results)
+            
             print(f"✓ Found {len(results)} results")
-
-            # Download PDFs if requested
+            
+            # Download PDFs and extract Item 19 if requested
             if download_pdfs:
-                print(f"⬇️  Downloading {len(results)} PDFs...")
                 for result in results:
-                    if result.get("pdf_url"):
+                    if result.get('pdf_url'):
                         pdf_path = self._download_pdf(
-                            result["pdf_url"],
-                            result["franchise_name"],
-                            result["document_id"],
+                            result['pdf_url'],
+                            result['franchise_name'],
+                            result['document_id']
                         )
-                        result["pdf_downloaded"] = pdf_path is not None
-                        result["pdf_path"] = pdf_path
-                    else:
-                        result["pdf_downloaded"] = False
-                        result["pdf_path"] = None
-
-            # TODO: Extract Item 19 if requested (next task)
-            if extract_item19 and download_pdfs:
-                print("⚠️  Item 19 extraction not yet implemented")
-
+                        result['pdf_downloaded'] = pdf_path is not None
+                        result['pdf_path'] = pdf_path
+                        
+                        if extract_item19 and pdf_path:
+                            item19_data = self._extract_item19(pdf_path)
+                            if item19_data:
+                                result.update(item19_data)
+                        
+                        # Rate limiting
+                        time.sleep(random.uniform(1.0, 2.0))
+            
             # Build response
             response = {
-                "source": "wisconsin_dfi",
-                "search_date": datetime.now().isoformat(),
-                "industry": industry,
-                "total_found": len(results),
-                "results": results,
+                'source': 'wisconsin_dfi',
+                'search_date': datetime.now().isoformat(),
+                'industry': industry,
+                'total_found': len(results),
+                'results': results
             }
-
+            
             # Save to cache
-            self._save_cache(cache_key, response)
-
+            if use_cache:
+                self._save_cache(cache_key, response)
+            
             return response
-
+            
         except Exception as e:
-            print(f"❌ Error during Wisconsin FDD search: {e}")
+            print(f"❌ Search error: {e}")
             return {
-                "source": "wisconsin_dfi",
-                "search_date": datetime.now().isoformat(),
-                "industry": industry,
-                "total_found": 0,
-                "results": [],
-                "error": str(e),
+                'source': 'wisconsin_dfi',
+                'search_date': datetime.now().isoformat(),
+                'industry': industry,
+                'total_found': 0,
+                'results': [],
+                'error': str(e)
             }
-
+            
         finally:
             if driver:
                 driver.quit()
 
 
-# Test function for development
-def _test_wisconsin_scraper():
-    """Test the Wisconsin FDD scraper"""
-    scraper = WisconsinFDDScraper()
-
-    # Test search
-    results = scraper.search(
-        industry="car wash",
-        max_results=5,
-        download_pdfs=True,
-        use_cache=False,
-    )
-
-    print(f"\n{'='*60}")
-    print(f"Total found: {results['total_found']}")
-    print(f"{'='*60}\n")
-
-    for i, result in enumerate(results["results"], 1):
-        print(f"{i}. {result['franchise_name']}")
-        print(f"   Document ID: {result['document_id']}")
-        print(f"   Year: {result['fdd_year']}")
-        print(f"   PDF URL: {result['pdf_url']}")
-        print(f"   PDF Downloaded: {result.get('pdf_downloaded', False)}")
-        if result.get("pdf_path"):
-            print(f"   PDF Path: {result['pdf_path']}")
-        print()
-
-
+# Test function
 if __name__ == "__main__":
-    _test_wisconsin_scraper()
+    scraper = WisconsinFDDScraper()
+    results = scraper.search("car wash", max_results=5)
+    print(json.dumps(results, indent=2))
