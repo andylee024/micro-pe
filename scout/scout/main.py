@@ -7,9 +7,9 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scout.utils.query_parser import parse_query
+from core.utils.query_parser import parse_query
 from scout import config
-from scout.utils.errors import (
+from core.utils.errors import (
     format_error_message,
     handle_api_error,
     validate_api_key,
@@ -75,7 +75,7 @@ def research(query: str, no_cache: bool, max_results: int, no_ui: bool):
             click.echo(f"{'=' * 50}\n")
 
             # Import here to avoid circular imports
-            from tools.google_maps_tool import GoogleMapsTool
+            from sources.maps.google_maps import GoogleMapsTool
 
             # Initialize Google Maps tool
             tool = GoogleMapsTool(cache_dir=config.CACHE_DIR)

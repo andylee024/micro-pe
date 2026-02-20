@@ -29,7 +29,7 @@ dev = [
 scout = "scout.main:cli"
 
 [tool.setuptools]
-packages = ["scout", "scout.utils", "scout.ui"]
+packages = ["scout", "scout.utils", "scout.ui", "core", "core.utils", "sources", "sources.fdd", "sources.maps", "sources.marketplaces", "sources.sentiment", "sources.registry"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
