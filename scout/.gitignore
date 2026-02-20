@@ -4,24 +4,35 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
 .Python
 
-# Environment
-.env
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
 
-# Output files (production results)
+# Project-specific data (generated)
+cache/
+data/
 outputs/*
 !outputs/.gitkeep
 
-# Keep experiment data tracked
-!experiments/
-
-# Ralph — raw Claude output logs (can be large, not useful to commit)
-.ralph/runs/
+# Environment
+.env
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-workspace-5-scrapers/
+.DS_Store
+
+# Build
+build/
+dist/
+*.egg
+
+# Ralph — raw Claude output logs
+.ralph/runs/
