@@ -1,6 +1,7 @@
 """Keyboard event handling for terminal UI"""
 
 import readchar
+import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -18,6 +19,8 @@ class KeyboardHandler:
         """
         self.terminal = terminal
         self.running = True
+        self._pending_g = False
+        self._last_g_time = 0.0
 
     def handle_event_loop(self) -> None:
         """Non-blocking keyboard event loop
@@ -43,6 +46,10 @@ class KeyboardHandler:
         Args:
             key: The key that was pressed
         """
+        now = time.monotonic()
+        if self._pending_g and (now - self._last_g_time) > 0.7:
+            self._pending_g = False
+
         # Handle special keys (arrows)
         if key == readchar.key.UP:
             self.terminal.scroll_up()
@@ -56,7 +63,31 @@ class KeyboardHandler:
             self.terminal.scroll_to_top()
         elif key == readchar.key.END:
             self.terminal.scroll_to_bottom()
+        elif key in (getattr(readchar.key, "CTRL_D", None), '\x04'):
+            self.terminal.page_down()
+        elif key in (getattr(readchar.key, "CTRL_U", None), '\x15'):
+            self.terminal.page_up()
         # Handle regular keys (case insensitive)
+        elif key in (readchar.key.ENTER, '\r', '\n'):
+            self.terminal.select_business()
+        elif key in (getattr(readchar.key, "ESCAPE", None), '\x1b'):
+            self.terminal.close_detail()
+        elif key.lower() == 'b':
+            self.terminal.close_detail()
+        elif key.lower() == 'j':
+            self.terminal.scroll_down()
+        elif key.lower() == 'k':
+            self.terminal.scroll_up()
+        elif key == 'g':
+            if self._pending_g and (now - self._last_g_time) <= 0.7:
+                self.terminal.scroll_to_top()
+                self._pending_g = False
+            else:
+                self._pending_g = True
+                self._last_g_time = now
+            return
+        elif key == 'G':
+            self.terminal.scroll_to_bottom()
         elif key.lower() == 'e':
             self.terminal.export_csv()
         elif key.lower() == 'q':

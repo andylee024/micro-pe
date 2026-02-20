@@ -1,538 +1,158 @@
-# Scout: Current Architecture
+# Scout Architecture
 
-**Last Updated:** 2026-02-19
-**Current Version:** V0 (MVP)
-**Status:** Working terminal with Google Maps integration
+**Purpose:** Help new contributors understand how the codebase is organized and how it supports the PRD vision.
+**Last Updated:** 2026-02-20
 
 ---
 
-## System Overview
+## 1) Overview
+
+Scout is a terminal‑first intelligence tool for SMB acquisition. The architecture is layered to keep product logic separate from data acquisition, so we can evolve sources independently while preserving a stable app core.
+
+**Core layers**
+1. **CLI/UI** — terminal experience
+2. **Application** — use‑case orchestration
+3. **Domain** — core models
+4. **Adapters** — translate external data into domain
+5. **Data Sources** — concrete scrapers/APIs
+
+---
+
+## 2) Repository Layout
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  USER                                                             │
-│  $ scout research "HVAC in Los Angeles"                          │
-└──────────────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────────────┐
-│  CLI LAYER (Click)                                               │
-│  File: scout/scout/main.py                                       │
-│                                                                   │
-│  • Parse command arguments                                        │
-│  • Validate API keys                                              │
-│  • Route to terminal UI or simple CLI mode                       │
-└──────────────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────────────┐
-│  QUERY PARSER                                                     │
-│  File: scout/scout/utils/query_parser.py                         │
-│                                                                   │
-│  "HVAC in Los Angeles" → industry="HVAC", location="Los Angeles"│
-└──────────────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────────────┐
-│  TERMINAL UI (Rich + Prompt Toolkit)                             │
-│  File: scout/scout/ui/terminal.py                                │
-│                                                                   │
-│  ┌────────────────────────────────────────────────┐             │
-│  │ Scout - Market Research                        │             │
-│  │ Query: HVAC in Los Angeles                     │             │
-│  ├────────────────────────────────────────────────┤             │
-│  │                                                 │             │
-│  │ 📊 Building universe...                         │             │
-│  │    ✓ Found 487 businesses                      │             │
-│  │                                                 │             │
-│  │ # Name              Phone         Website      │             │
-│  │ 1 Cool Air HVAC     555-0100     coolair.com  │             │
-│  │ 2 Premier Climate   555-0200     premier.com  │             │
-│  │                                                 │             │
-│  │ [↑↓] Navigate [E] Export [Q] Quit [H] Help    │             │
-│  └────────────────────────────────────────────────┘             │
-│                                                                   │
-│  Components:                                                      │
-│  • BusinessTable (scrollable list)                               │
-│  • StatusBar (cache status, count)                               │
-│  • HelpPanel (keyboard shortcuts)                                │
-│  • Keyboard handler (j/k, E, Q, H)                               │
-└──────────────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────────────┐
-│  DATA LAYER                                                       │
-│                                                                   │
-│  Google Maps Tool                                                 │
-│  File: tools/google_maps_tool.py                                 │
-│  ├─ Search Google Maps Places API                                │
-│  ├─ Get place details                                             │
-│  ├─ Cache results (90 days)                                       │
-│  └─ Return: name, address, phone, website, rating, reviews       │
-│                                                                   │
-│  Cache Storage                                                    │
-│  Location: ~/.scout/cache/                                        │
-│  Format: JSON files                                               │
-│  TTL: 90 days                                                     │
-└──────────────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────────────┐
-│  OUTPUT                                                           │
-│                                                                   │
-│  CSV Export                                                       │
-│  File: scout/scout/utils/export.py                               │
-│  Location: outputs/{industry}_{location}_{date}.csv              │
-│  Format: name,address,phone,website,category                     │
-└──────────────────────────────────────────────────────────────────┘
+scout/
+├── scout/                 # App package
+│   ├── main.py            # CLI entry point
+│   ├── ui/                # Terminal UI
+│   ├── application/       # Use cases (orchestration)
+│   ├── domain/            # Domain models
+│   ├── adapters/          # Interfaces to data sources
+│   └── shared/            # App‑level utilities (errors, export, parsing)
+│
+├── data_sources/          # Data acquisition (scrapers/tools)
+│   ├── maps/
+│   ├── marketplaces/
+│   ├── fdd/
+│   ├── sentiment/
+│   └── shared/            # Data‑source infra (base, config, errors)
+│
+├── tests/                 # Tests mirror layout
+│   ├── scout/
+│   ├── data_sources/
+│   └── shared/
+│
+└── docs/                  # Product + feature docs (see prd.md)
 ```
 
 ---
 
-## Component Details
+## 3) Runtime Flow (Scout Research)
 
-### 1. CLI Layer
-
-**File:** `scout/scout/main.py`
-
-**Purpose:** Command-line interface entry point
-
-**Framework:** Click (Python CLI framework)
-
-**Commands:**
-```bash
-scout research "HVAC in Los Angeles"
-  --no-cache        # Bypass cache, fetch fresh data
-  --max-results N   # Limit results (default: 60)
-  --no-ui           # Simple CLI mode (no terminal UI)
+```
+CLI (scout/main.py)
+  → parse query (scout/shared/query_parser.py)
+  → ResearchMarket use case (scout/application/research_market.py)
+    → GoogleMapsAdapter (scout/adapters/maps.py)
+      → GoogleMapsTool (data_sources/maps/google_maps.py)
+    → BizBuySellAdapter (scout/adapters/bizbuysell.py)
+      → BizBuySellTool (data_sources/marketplaces/bizbuysell.py)
+    → RedditSearchAdapter (scout/adapters/reddit.py)
+  → UI render (scout/ui/terminal.py)
+  → Export CSV (scout/shared/export.py)
 ```
 
-**Flow:**
-1. Parse command arguments
-2. Validate environment (API keys, config)
-3. Parse query into industry + location
-4. Launch terminal UI OR simple CLI mode
-5. Handle errors gracefully
-
-**Key Functions:**
-- `cli()` - Main command group
-- `research()` - Research command handler
+This flow aligns with the PRD: input a thesis → multi‑source data → ranked/usable output via terminal UI.
 
 ---
 
-### 2. Query Parser
+## 4) Key Modules
 
-**File:** `scout/scout/utils/query_parser.py`
+**CLI**
+- `scout/main.py` — Click commands and argument parsing.
 
-**Purpose:** Extract structured data from natural language queries
+**UI**
+- `scout/ui/terminal.py` — Rich‑based UI controller.
+- `scout/ui/components.py` — UI panels/layout.
+- `scout/ui/keyboard.py` — input handling.
+  - Vim‑like keys supported: `j/k`, `gg/G`, `Ctrl+U/Ctrl+D`.
 
-**Examples:**
-```python
-"HVAC in Los Angeles"           → industry="HVAC", location="Los Angeles"
-"backflow testing Houston TX"   → industry="backflow testing", location="Houston, TX"
-"car washes in San Francisco"   → industry="car washes", location="San Francisco"
-```
+**Application (Use Cases)**
+- `scout/application/research_market.py` — core orchestration for research queries.
+- `scout/application/benchmarking.py` — benchmark calculations.
 
-**Algorithm:**
-- Split on "in" keyword
-- Fallback: Last 1-2 words = location, rest = industry
-- Handles variations (with/without "in", different formats)
+**Domain**
+- `scout/domain/models.py` — `Business`, `Benchmark`, `MarketSummary`, `ResearchResult`.
 
----
+**Adapters**
+- `scout/adapters/maps.py` — maps → `Business`.
+- `scout/adapters/bizbuysell.py` — listings for benchmarks.
+- `scout/adapters/reddit.py` — pulse summaries.
 
-### 3. Terminal UI
+**Data Sources (Acquisition Layer)**
+- `data_sources/maps/` — Google Maps search + reviews.
+- `data_sources/marketplaces/` — BizBuySell scraping.
+- `data_sources/fdd/` — state FDD scrapers + aggregator.
+- `data_sources/sentiment/` — Reddit sentiment.
+- `data_sources/shared/` — base `Tool`, config, errors.
 
-**File:** `scout/scout/ui/terminal.py`
-
-**Purpose:** Interactive terminal interface for browsing results
-
-**Framework:**
-- Rich (rendering tables, panels, progress)
-- Prompt Toolkit (keyboard input, screen management)
-
-**Components:**
-
-#### BusinessTable
-- Scrollable list of businesses
-- Columns: Name, Phone, Website
-- Keyboard navigation (↑↓ or j/k)
-- Row highlighting
-
-#### StatusBar
-- Shows cache status
-- Total business count
-- Keyboard shortcuts reminder
-
-#### HelpPanel
-- Toggles with H key
-- Shows all keyboard shortcuts
-- Instructions for export
-
-**Keyboard Bindings:**
-- `↑` / `k` - Scroll up
-- `↓` / `j` - Scroll down
-- `E` - Export to CSV
-- `Q` - Quit
-- `H` - Toggle help panel
-
-**State Management:**
-- `current_row` - Selected row index
-- `scroll_offset` - Viewport scroll position
-- `show_help` - Help panel visibility
-- `businesses` - Data array
+**Data Source Smoke Tests**
+- `tests/data_sources/test_smoke.py` — one live smoke test per data source.
+- Run with `SCOUT_LIVE_TESTS=1 pytest tests/data_sources/test_smoke.py -v`.
 
 ---
 
-### 4. Google Maps Integration
+## 5) Cross‑Cutting Concerns
 
-**File:** `tools/google_maps_tool.py`
+**Caching**
+- Implemented in `data_sources/shared/base.py`.
+- Each tool controls TTLs; cache stored under `outputs/cache/`.
 
-**Purpose:** Fetch business data from Google Maps Places API
+**Config & Secrets**
+- Data‑source settings: `data_sources/shared/config.py`.
+- App settings: `scout/shared/settings.py`.
+- API keys via `.env` (Google Maps, Reddit, etc.).
 
-**API Used:** Google Maps Places API (New)
-
-**Flow:**
-1. Text search for "{industry} in {location}"
-2. Extract place IDs from results
-3. Fetch place details for each ID
-4. Cache results locally
-5. Return normalized data
-
-**Data Extracted:**
-```python
-{
-    'name': 'Cool Air HVAC',
-    'address': '1234 Wilshire Blvd, Los Angeles, CA',
-    'phone': '(310) 555-0100',
-    'website': 'https://coolair.com',
-    'rating': 4.5,
-    'reviews': 245,
-    'place_id': 'ChIJ...',
-    'lat': 34.0522,
-    'lng': -118.2437
-}
-```
-
-**API Costs:**
-- Text search: $32 per 1,000 requests
-- Place details: $17 per 1,000 requests
-- ~$1.05 per 60 businesses
-
-**Caching:**
-- Location: `~/.scout/cache/`
-- Format: JSON files
-- TTL: 90 days
-- Cache key: `{industry}_{location}_hash.json`
+**Errors**
+- App errors: `scout/shared/errors.py`.
+- Data‑source errors: `data_sources/shared/errors.py`.
 
 ---
 
-### 5. Cache System
+## 6) How This Supports the PRD
 
-**Location:** `~/.scout/cache/`
-
-**Structure:**
-```
-~/.scout/
-├── cache/
-│   ├── hvac_los_angeles_abc123.json
-│   ├── backflow_houston_def456.json
-│   └── ...
-└── config/
-    └── settings.json
-```
-
-**Cache File Format:**
-```json
-{
-    "query": {
-        "industry": "HVAC",
-        "location": "Los Angeles",
-        "timestamp": "2026-02-19T10:30:00Z"
-    },
-    "results": [
-        {
-            "name": "Cool Air HVAC",
-            "address": "...",
-            ...
-        }
-    ],
-    "metadata": {
-        "total_found": 487,
-        "api_cost": 1.05
-    }
-}
-```
-
-**Cache Strategy:**
-- Write through (cache on first fetch)
-- Check freshness (90-day TTL)
-- Invalidate on `--no-cache` flag
+The PRD emphasizes time‑to‑conviction and data fusion. This architecture enforces:
+- **Separation of concerns** — data acquisition can evolve without breaking UI.
+- **Composable use cases** — research workflow can add sources incrementally.
+- **Terminal‑first UX** — UI is isolated and can iterate quickly.
 
 ---
 
-### 6. CSV Export
-
-**File:** `scout/scout/utils/export.py`
-
-**Purpose:** Export business data to CSV for mail merge / CRM import
-
-**Format:**
-```csv
-name,address,phone,website,category
-Cool Air HVAC,"1234 Wilshire Blvd, Los Angeles, CA",(310) 555-0100,coolair.com,HVAC
-Premier Climate,"456 Main St, Santa Monica, CA",(310) 555-0200,premierclimate.com,HVAC
-```
-
-**File Naming:**
-- Pattern: `{industry}_{location}_{YYYY-MM-DD}.csv`
-- Example: `hvac_los_angeles_2026-02-19.csv`
-- Location: `outputs/`
-
-**Features:**
-- Unicode support
-- Handles missing fields (N/A)
-- Creates output directory if doesn't exist
-- Returns export path for user feedback
-
----
-
-### 7. Error Handling
-
-**File:** `scout/scout/utils/errors.py`
-
-**Purpose:** User-friendly error messages, no stack traces
-
-**Custom Exceptions:**
-```python
-ConfigurationError  # Missing API keys, bad config
-ValidationError     # Invalid query format
-APIError           # Google Maps API failures
-NetworkError       # Connection issues
-FileIOError        # Can't write CSV
-```
-
-**Error Formatting:**
-```
-❌ Error: Google Maps API key not found
-
-   Please add GOOGLE_MAPS_API_KEY to your .env file
-
-   Get API key: https://console.cloud.google.com/
-```
-
-**Features:**
-- Emoji indicators (❌ ✅)
-- Clear error messages
-- Actionable hints
-- No stack traces shown to users
-
----
-
-## Data Flow
-
-### Happy Path (Cached Query)
-
-```
-User: scout research "HVAC in Los Angeles"
-  ↓
-Parse: industry="HVAC", location="Los Angeles"
-  ↓
-Check cache: FOUND (age: 2 days)
-  ↓
-Load from cache: 487 businesses
-  ↓
-Terminal UI: Display table
-  ↓
-User: Press E (export)
-  ↓
-Export to CSV: outputs/hvac_los_angeles_2026-02-19.csv
-  ↓
-Success: ✅ Exported 487 businesses
-```
-
-**Total time:** <1 second
-
----
-
-### Happy Path (Fresh Query)
-
-```
-User: scout research "backflow testing in Houston"
-  ↓
-Parse: industry="backflow testing", location="Houston"
-  ↓
-Check cache: NOT FOUND
-  ↓
-Google Maps API: Search for "backflow testing in Houston"
-  ↓
-Found 67 businesses
-  ↓
-Fetch details for 67 businesses (batched)
-  ↓
-Write to cache: ~/.scout/cache/backflow_houston_xyz.json
-  ↓
-Terminal UI: Display table
-```
-
-**Total time:** ~3-5 seconds
-
----
-
-## Technology Stack
-
-### Core Dependencies
-
-**Python Libraries:**
-- `click` - CLI framework
-- `rich` - Terminal rendering (tables, panels, progress)
-- `prompt_toolkit` - Keyboard input, screen management
-- `python-dotenv` - Environment variable management
-- `googlemaps` - Google Maps API client
-
-**APIs:**
-- Google Maps Places API (New)
-
-**File Formats:**
-- JSON (cache storage)
-- CSV (export format)
-- ENV (configuration)
-
----
-
-## Configuration
-
-**File:** `.env` in project root
+## 7) Onboarding Quick Start
 
 ```bash
-# Required
-GOOGLE_MAPS_API_KEY=your_key_here
-
-# Optional
-CACHE_DIR=~/.scout/cache
-CACHE_TTL_DAYS=90
-MAX_RESULTS_DEFAULT=60
-```
-
-**Config Loading:**
-1. Check `.env` file
-2. Fall back to environment variables
-3. Use defaults if not set
-
----
-
-## Testing
-
-**Framework:** pytest
-
-**Coverage:**
-- Unit tests: `scout/tests/test_export.py`
-- Integration tests: `scout/tests/test_integration.py`
-- Total: 29 tests passing
-
-**Test Categories:**
-- CSV export functionality
-- Error handling
-- Query parsing
-- Large datasets (500+ businesses)
-- Unicode handling
-
----
-
-## Deployment
-
-**Installation:**
-```bash
-cd scout
 pip install -e .
-```
-
-**Creates command:**
-```bash
 scout research "HVAC in Los Angeles"
 ```
 
-**Requirements:**
-- Python 3.11+
-- Google Maps API key (with billing enabled)
-- Terminal with Unicode support
+If you want to run without UI:
+```bash
+scout research "HVAC in Los Angeles" --no-ui
+```
+
+If you want to iterate on UI with mock data:
+```bash
+scout research "HVAC in Los Angeles" --mock-data
+```
 
 ---
 
-## Performance
+## 8) Where to Add New Work
 
-**Current Metrics:**
-
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Cached query | <1 sec | <1 sec | ✅ |
-| Fresh query | <5 sec | 3-5 sec | ✅ |
-| Export 500 businesses | <1 sec | <1 sec | ✅ |
-| Terminal responsiveness | Instant | Instant | ✅ |
-
-**Bottlenecks:**
-- Google Maps API latency (3-5 sec for 60+ businesses)
-- Rate limits: None yet (under free tier)
+- **New data source:** add under `data_sources/` and expose via an adapter in `scout/adapters/`.
+- **New workflow:** create a use case in `scout/application/`.
+- **New UI panel:** extend `scout/ui/components.py` and wire in `scout/ui/terminal.py`.
 
 ---
 
-## Limitations (Current V0)
-
-### What's Missing
-
-**No financial data:**
-- Can't estimate revenue
-- Can't show benchmarks
-- Can't calculate valuations
-
-**No scoring:**
-- Businesses not ranked
-- No quality assessment
-- No acquisition signals
-
-**No multi-source:**
-- Google Maps only
-- No Reddit sentiment
-- No FDD data
-
-**Simple UI:**
-- Table view only
-- No business detail screen
-- No 4-screen layout
-
-### Known Issues
-
-1. **Windows untested** (should work with WSL)
-2. **Large result sets** (500+) not optimized
-3. **No pagination** in terminal UI
-4. **No filtering/sorting** beyond what's displayed
-
----
-
-## What's Next
-
-See [roadmap.md](roadmap.md) for Phase 1 features:
-- BizBuySell integration
-- FDD database
-- Enhanced terminal UI with benchmarks
-
----
-
-## Architecture Decisions
-
-### Why Rich + Prompt Toolkit?
-- **Pro:** Fast to implement, good for MVP
-- **Pro:** Python ecosystem (matches existing code)
-- **Con:** Not as polished as Ink (TypeScript)
-- **Decision:** Right choice for MVP, can upgrade later
-
-### Why JSON cache instead of SQLite?
-- **Pro:** Simpler (no schema migrations)
-- **Pro:** Human-readable
-- **Con:** No querying capabilities
-- **Decision:** Fine for MVP, will migrate to SQLite in Phase 2
-
-### Why Click instead of Typer?
-- **Pro:** Mature, well-documented
-- **Pro:** Simple for basic CLI needs
-- **Con:** Typer has better type hints
-- **Decision:** Click is sufficient for current needs
-
----
-
-_For strategic direction, see [product_vision.md](product_vision.md)_
-_For feature plans, see [roadmap.md](roadmap.md)_
+For product direction and roadmap, see `docs/prd.md`.

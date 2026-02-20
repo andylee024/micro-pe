@@ -7,9 +7,9 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.utils.query_parser import parse_query
+from scout.shared.query_parser import parse_query
 from scout import config
-from core.utils.errors import (
+from scout.shared.errors import (
     format_error_message,
     handle_api_error,
     validate_api_key,
@@ -29,20 +29,30 @@ def cli():
 @click.option('--no-cache', is_flag=True, help='Bypass cache and fetch fresh data')
 @click.option('--max-results', default=config.MAX_RESULTS_DEFAULT, help='Maximum number of businesses to fetch')
 @click.option('--no-ui', is_flag=True, help='Disable terminal UI and just print results')
-def research(query: str, no_cache: bool, max_results: int, no_ui: bool):
+@click.option('--mock-data', is_flag=True, help='Use bundled mock data for UI iteration')
+@click.option('--mock-data-path', type=click.Path(exists=True, dir_okay=False, path_type=Path), help='Path to mock data JSON')
+def research(
+    query: str,
+    no_cache: bool,
+    max_results: int,
+    no_ui: bool,
+    mock_data: bool,
+    mock_data_path: Path | None,
+):
     """
     Research a market by searching for businesses.
 
     Example: scout research "HVAC in Los Angeles"
     """
     try:
-        # Validate API key is configured
-        try:
-            validate_api_key(config.GOOGLE_MAPS_API_KEY, "Google Maps")
-        except ConfigurationError as e:
-            click.echo(format_error_message(e), err=True)
-            click.echo("\nPlease add GOOGLE_MAPS_API_KEY to your .env file", err=True)
-            sys.exit(1)
+        # Validate API key is configured (skip for mock data)
+        if not mock_data and not mock_data_path:
+            try:
+                validate_api_key(config.GOOGLE_MAPS_API_KEY, "Google Maps")
+            except ConfigurationError as e:
+                click.echo(format_error_message(e), err=True)
+                click.echo("\nPlease add GOOGLE_MAPS_API_KEY to your .env file", err=True)
+                sys.exit(1)
 
         # Parse query into industry and location
         try:
@@ -55,12 +65,18 @@ def research(query: str, no_cache: bool, max_results: int, no_ui: bool):
         if not no_ui:
             # Launch Rich terminal UI
             from scout.ui.terminal import ScoutTerminal
+            from scout.shared.mock_data import load_mock_result
+
+            initial_result = None
+            if mock_data or mock_data_path:
+                initial_result = load_mock_result(mock_data_path)
 
             terminal = ScoutTerminal(
                 industry=industry,
                 location=location,
                 use_cache=not no_cache,
-                max_results=max_results
+                max_results=max_results,
+                initial_result=initial_result,
             )
             terminal.run()
 
@@ -75,20 +91,23 @@ def research(query: str, no_cache: bool, max_results: int, no_ui: bool):
             click.echo(f"{'=' * 50}\n")
 
             # Import here to avoid circular imports
-            from sources.maps.google_maps import GoogleMapsTool
-
-            # Initialize Google Maps tool
-            tool = GoogleMapsTool(cache_dir=config.CACHE_DIR)
+            from scout.application.research_market import ResearchMarket
+            from scout.shared.mock_data import load_mock_result
 
             # Fetch business data
-            click.echo(f"🔍 Searching Google Maps for {industry} in {location}...")
+            click.echo(f"🔍 Searching data sources for {industry} in {location}...")
             try:
-                results = tool.search(
-                    industry=industry,
-                    location=location,
-                    max_results=max_results,
-                    use_cache=not no_cache
-                )
+                if mock_data or mock_data_path:
+                    results = load_mock_result(mock_data_path)
+                else:
+                    use_case = ResearchMarket()
+                    results = use_case.run(
+                        industry=industry,
+                        location=location,
+                        max_results=max_results,
+                        use_cache=not no_cache,
+                        include_benchmarks=True,
+                    )
             except ConnectionError:
                 click.echo("\n❌ Error: Network connection failed", err=True)
                 click.echo("   Please check your internet connection and try again", err=True)
@@ -99,7 +118,7 @@ def research(query: str, no_cache: bool, max_results: int, no_ui: bool):
                 sys.exit(1)
 
             # Display results
-            businesses = results.get('results', [])
+            businesses = results.businesses
             total_found = len(businesses)
 
             click.echo(f"\n✅ Found {total_found} businesses\n")
@@ -109,10 +128,10 @@ def research(query: str, no_cache: bool, max_results: int, no_ui: bool):
                 click.echo("Top businesses:")
                 click.echo("-" * 80)
                 for i, biz in enumerate(businesses[:10], 1):
-                    name = biz.get('name', 'N/A')
-                    rating = biz.get('rating', 0.0)
-                    reviews = biz.get('reviews', 0)
-                    phone = biz.get('phone', 'N/A')
+                    name = biz.name or 'N/A'
+                    rating = biz.rating or 0.0
+                    reviews = biz.reviews or 0
+                    phone = biz.phone or 'N/A'
                     click.echo(f"{i:2d}. {name:40s} {rating:.1f}⭐ ({reviews} reviews) {phone}")
 
                 if total_found > 10:

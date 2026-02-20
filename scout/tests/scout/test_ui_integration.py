@@ -55,7 +55,7 @@ class TestFullUIPipeline:
 
     def test_full_ui_pipeline_fresh_data(self, mock_google_maps_response, tmp_path):
         """Test: CLI → Terminal UI → Google Maps → Display → Export"""
-        with patch('tools.google_maps_tool.GoogleMapsTool.search') as mock_search:
+        with patch('data_sources.maps.google_maps.GoogleMapsTool.search') as mock_search:
             mock_search.return_value = mock_google_maps_response
 
             # Initialize terminal
@@ -80,10 +80,11 @@ class TestFullUIPipeline:
 
             # Test scrolling
             terminal.scroll_down()
-            assert terminal.scroll_offset == 1
+            assert terminal.selected_index == 1
+            assert terminal.scroll_offset == 0
 
             terminal.scroll_up()
-            assert terminal.scroll_offset == 0
+            assert terminal.selected_index == 0
 
             # Test export (with mocked output dir)
             from scout import config
@@ -99,7 +100,7 @@ class TestFullUIPipeline:
 
     def test_caching_with_ui(self, mock_cached_response):
         """Test: Second run uses cache, UI shows 'Cached' status"""
-        with patch('tools.google_maps_tool.GoogleMapsTool.search') as mock_search:
+        with patch('data_sources.maps.google_maps.GoogleMapsTool.search') as mock_search:
             mock_search.return_value = mock_cached_response
 
             # Initialize terminal with cache enabled
@@ -129,13 +130,9 @@ class TestFullUIPipeline:
 
         # Test scrolling to bottom
         max_offset = len(terminal.businesses) - terminal.page_size
-
-        # Scroll down multiple times
-        for _ in range(max_offset):
-            terminal.scroll_down()
-
-        # Should be at bottom
+        terminal.scroll_to_bottom()
         assert terminal.scroll_offset == max_offset
+        assert terminal.selected_index == len(terminal.businesses) - 1
 
         # Test page down at bottom (should not crash)
         terminal.page_down()
@@ -151,7 +148,7 @@ class TestFullUIPipeline:
 
     def test_error_handling_in_ui(self):
         """Test: API error shows user-friendly message in UI"""
-        with patch('tools.google_maps_tool.GoogleMapsTool.search') as mock_search:
+        with patch('data_sources.maps.google_maps.GoogleMapsTool.search') as mock_search:
             # Simulate API error
             mock_search.side_effect = ConnectionError("Network connection failed")
 
@@ -180,12 +177,15 @@ class TestKeyboardInteraction:
         # Test scrolling methods directly (not via key dispatch which has special key codes)
         initial_offset = terminal.scroll_offset
         terminal.scroll_down()
-        assert terminal.scroll_offset == initial_offset + 1
-
-        terminal.scroll_up()
+        assert terminal.selected_index == 1
         assert terminal.scroll_offset == initial_offset
 
         terminal.scroll_up()
+        assert terminal.selected_index == 0
+        assert terminal.scroll_offset == initial_offset
+
+        terminal.scroll_up()
+        assert terminal.selected_index == 0
         assert terminal.scroll_offset == initial_offset
 
     def test_export_key_press(self, mock_businesses, tmp_path):
@@ -298,7 +298,10 @@ class TestUIComponents:
         assert layout is not None
         assert layout.get("header") is not None
         assert layout.get("body") is not None
-        assert layout.get("status") is not None
+        assert layout.get("market_overview") is not None
+        assert layout.get("target_list") is not None
+        assert layout.get("business_profile") is not None
+        assert layout.get("market_pulse") is not None
 
     def test_layout_with_data(self, mock_businesses):
         """Test layout displays correctly with data"""
@@ -311,7 +314,10 @@ class TestUIComponents:
         assert layout is not None
         assert layout.get("header") is not None
         assert layout.get("body") is not None
-        assert layout.get("status") is not None
+        assert layout.get("market_overview") is not None
+        assert layout.get("target_list") is not None
+        assert layout.get("business_profile") is not None
+        assert layout.get("market_pulse") is not None
 
     def test_layout_with_help(self, mock_businesses):
         """Test layout displays help panel"""
@@ -352,6 +358,7 @@ class TestScrollingEdgeCases:
         # Should not scroll since all fit on one page
         terminal.scroll_down()
         assert terminal.scroll_offset == 0
+        assert terminal.selected_index == 1
 
         terminal.page_down()
         assert terminal.scroll_offset == 0
@@ -367,6 +374,7 @@ class TestScrollingEdgeCases:
         # Should not scroll since all fit on one page
         terminal.scroll_down()
         assert terminal.scroll_offset == 0
+        assert terminal.selected_index == 1
 
     def test_scroll_one_more_than_page_size(self):
         """Test scrolling with page_size + 1 businesses"""
@@ -378,10 +386,12 @@ class TestScrollingEdgeCases:
 
         # Should be able to scroll down by 1
         terminal.scroll_down()
-        assert terminal.scroll_offset == 1
+        assert terminal.scroll_offset == 0
+        assert terminal.selected_index == 1
 
         terminal.scroll_down()
-        assert terminal.scroll_offset == 1  # Should stop at max
+        assert terminal.scroll_offset == 0
+        assert terminal.selected_index == 2
 
 
 class TestExportIntegration:
@@ -421,7 +431,7 @@ class TestRefreshFunctionality:
 
     def test_refresh_bypasses_cache(self, mock_google_maps_response):
         """Test refresh forces fresh data fetch"""
-        with patch('tools.google_maps_tool.GoogleMapsTool.search') as mock_search:
+        with patch('data_sources.maps.google_maps.GoogleMapsTool.search') as mock_search:
             mock_search.return_value = mock_google_maps_response
 
             terminal = ScoutTerminal(

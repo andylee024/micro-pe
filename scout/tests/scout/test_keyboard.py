@@ -52,56 +52,65 @@ class TestKeyDispatch:
     def test_dispatch_up_arrow(self, handler, terminal):
         """Test up arrow key dispatch"""
         terminal.scroll_offset = 5
+        terminal.selected_index = 5
 
         with patch('readchar.key') as mock_key:
             mock_key.UP = '\x1b[A'
             handler._dispatch_key(mock_key.UP)
 
+        assert terminal.selected_index == 4
         assert terminal.scroll_offset == 4
 
     def test_dispatch_down_arrow(self, handler, terminal):
         """Test down arrow key dispatch"""
         terminal.scroll_offset = 0
+        terminal.selected_index = 0
 
         with patch('readchar.key') as mock_key:
             mock_key.DOWN = '\x1b[B'
             handler._dispatch_key(mock_key.DOWN)
 
-        assert terminal.scroll_offset == 1
+        assert terminal.selected_index == 1
 
     def test_dispatch_page_up(self, handler, terminal):
         """Test page up key dispatch"""
         terminal.scroll_offset = 30
+        terminal.selected_index = 30
 
         with patch('readchar.key') as mock_key:
             mock_key.PAGE_UP = '\x1b[5~'
             handler._dispatch_key(mock_key.PAGE_UP)
 
-        assert terminal.scroll_offset == 10
+        assert terminal.selected_index == 22
+        assert terminal.scroll_offset == 22
 
     def test_dispatch_page_down(self, handler, terminal):
         """Test page down key dispatch"""
         terminal.scroll_offset = 0
+        terminal.selected_index = 0
 
         with patch('readchar.key') as mock_key:
             mock_key.PAGE_DOWN = '\x1b[6~'
             handler._dispatch_key(mock_key.PAGE_DOWN)
 
-        assert terminal.scroll_offset == 20
+        assert terminal.selected_index == terminal.page_size
 
     def test_dispatch_home_key(self, handler, terminal):
         """Test home key dispatch"""
         terminal.scroll_offset = 100
+        terminal.selected_index = 100
 
         with patch('readchar.key') as mock_key:
             mock_key.HOME = '\x1b[H'
             handler._dispatch_key(mock_key.HOME)
 
         assert terminal.scroll_offset == 0
+        assert terminal.selected_index == 0
 
     def test_dispatch_end_key(self, handler, terminal):
         """Test end key dispatch"""
         terminal.scroll_offset = 0
+        terminal.selected_index = 0
 
         with patch('readchar.key') as mock_key:
             mock_key.END = '\x1b[F'
@@ -109,6 +118,7 @@ class TestKeyDispatch:
 
         max_offset = len(terminal.businesses) - terminal.page_size
         assert terminal.scroll_offset == max_offset
+        assert terminal.selected_index == len(terminal.businesses) - 1
 
 
 class TestCharacterKeys:
@@ -269,6 +279,7 @@ class TestEventLoop:
     def test_event_loop_processes_multiple_keys(self, handler, terminal):
         """Test event loop processes multiple key presses"""
         terminal.scroll_offset = 5
+        terminal.selected_index = 5
         keys_to_send = ['\x1b[B', '\x1b[B', 'q']  # Down, Down, Quit
 
         with patch('readchar.readkey') as mock_readkey:
@@ -277,7 +288,8 @@ class TestEventLoop:
             handler.handle_event_loop()
 
             # Should have scrolled down twice
-            assert terminal.scroll_offset == 7
+            assert terminal.selected_index == 7
+            assert terminal.scroll_offset == 5
             # Should have stopped
             assert handler.running is False
 

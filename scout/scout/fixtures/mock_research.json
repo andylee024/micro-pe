@@ -1,0 +1,200 @@
+{
+  "summary": {
+    "industry": "HVAC",
+    "location": "Los Angeles, CA",
+    "total_businesses": 12,
+    "benchmarks": [
+      {
+        "industry": "HVAC",
+        "median_revenue": 1200000,
+        "median_cash_flow": 220000,
+        "median_multiple": 3.4,
+        "margin_pct": 18.3,
+        "sample_size": 14,
+        "source": "bizbuysell"
+      }
+    ]
+  },
+  "businesses": [
+    {
+      "name": "Cool Air HVAC",
+      "address": "1234 Wilshire Blvd, Los Angeles, CA",
+      "phone": "(310) 555-0100",
+      "website": "coolair.com",
+      "category": "HVAC",
+      "rating": 4.8,
+      "reviews": 350,
+      "estimated_revenue": 1500000,
+      "estimated_cash_flow": 270000,
+      "estimated_value": 918000,
+      "confidence": "medium"
+    },
+    {
+      "name": "Premier Climate",
+      "address": "456 Main St, Santa Monica, CA",
+      "phone": "(310) 555-0200",
+      "website": "premierclimate.com",
+      "category": "HVAC",
+      "rating": 4.6,
+      "reviews": 210,
+      "estimated_revenue": 1200000,
+      "estimated_cash_flow": 216000,
+      "estimated_value": 734400,
+      "confidence": "medium"
+    },
+    {
+      "name": "SoCal Heating & Air",
+      "address": "789 Oak Ave, Pasadena, CA",
+      "phone": "(626) 555-0300",
+      "website": "socalheating.com",
+      "category": "HVAC",
+      "rating": 4.7,
+      "reviews": 180,
+      "estimated_revenue": 980000,
+      "estimated_cash_flow": 176000,
+      "estimated_value": 598400,
+      "confidence": "low"
+    },
+    {
+      "name": "Apex Mechanical",
+      "address": "2101 Sunset Blvd, Los Angeles, CA",
+      "phone": "(213) 555-0111",
+      "website": "apexmechanical.com",
+      "category": "HVAC",
+      "rating": 4.2,
+      "reviews": 95,
+      "estimated_revenue": 860000,
+      "estimated_cash_flow": 155000,
+      "estimated_value": 527000,
+      "confidence": "low"
+    },
+    {
+      "name": "Precision Comfort",
+      "address": "55 Ocean Ave, Santa Monica, CA",
+      "phone": "(310) 555-0222",
+      "website": "precisioncomfort.com",
+      "category": "HVAC",
+      "rating": 4.9,
+      "reviews": 420,
+      "estimated_revenue": 1900000,
+      "estimated_cash_flow": 350000,
+      "estimated_value": 1190000,
+      "confidence": "high"
+    },
+    {
+      "name": "Citywide HVAC",
+      "address": "800 S Grand Ave, Los Angeles, CA",
+      "phone": "(213) 555-0400",
+      "website": "citywidehvac.com",
+      "category": "HVAC",
+      "rating": 4.1,
+      "reviews": 70,
+      "estimated_revenue": 720000,
+      "estimated_cash_flow": 130000,
+      "estimated_value": 442000,
+      "confidence": "low"
+    },
+    {
+      "name": "Golden State Heating",
+      "address": "14 Mission St, Glendale, CA",
+      "phone": "(818) 555-0500",
+      "website": "goldenstateheating.com",
+      "category": "HVAC",
+      "rating": 4.4,
+      "reviews": 160,
+      "estimated_revenue": 1100000,
+      "estimated_cash_flow": 200000,
+      "estimated_value": 680000,
+      "confidence": "medium"
+    },
+    {
+      "name": "EcoTemp Services",
+      "address": "9021 Pico Blvd, Los Angeles, CA",
+      "phone": "(323) 555-0600",
+      "website": "ecotemp.com",
+      "category": "HVAC",
+      "rating": 4.3,
+      "reviews": 120,
+      "estimated_revenue": 930000,
+      "estimated_cash_flow": 170000,
+      "estimated_value": 578000,
+      "confidence": "low"
+    },
+    {
+      "name": "Blue Sky Mechanical",
+      "address": "77 Broadway, Los Angeles, CA",
+      "phone": "(213) 555-0700",
+      "website": "blueskymech.com",
+      "category": "HVAC",
+      "rating": 4.5,
+      "reviews": 205,
+      "estimated_revenue": 1250000,
+      "estimated_cash_flow": 225000,
+      "estimated_value": 765000,
+      "confidence": "medium"
+    },
+    {
+      "name": "Summit Air",
+      "address": "300 Rose Ave, Venice, CA",
+      "phone": "(310) 555-0800",
+      "website": "summitair.com",
+      "category": "HVAC",
+      "rating": 4.0,
+      "reviews": 60,
+      "estimated_revenue": 640000,
+      "estimated_cash_flow": 115000,
+      "estimated_value": 391000,
+      "confidence": "low"
+    },
+    {
+      "name": "Rapid Response HVAC",
+      "address": "2410 Lincoln Blvd, Santa Monica, CA",
+      "phone": "(310) 555-0900",
+      "website": "rapidresponsehvac.com",
+      "category": "HVAC",
+      "rating": 4.7,
+      "reviews": 310,
+      "estimated_revenue": 1400000,
+      "estimated_cash_flow": 255000,
+      "estimated_value": 867000,
+      "confidence": "high"
+    },
+    {
+      "name": "Westside Cooling",
+      "address": "1500 Sepulveda Blvd, Los Angeles, CA",
+      "phone": "(310) 555-1000",
+      "website": "westsidecooling.com",
+      "category": "HVAC",
+      "rating": 4.2,
+      "reviews": 90,
+      "estimated_revenue": 780000,
+      "estimated_cash_flow": 140000,
+      "estimated_value": 476000,
+      "confidence": "low"
+    }
+  ],
+  "pulse": {
+    "reddit": {
+      "thread_count": 23,
+      "overall": "Mixed",
+      "overall_emoji": "😐",
+      "positive_pct": 52,
+      "top_thread": {
+        "title": "HVAC maintenance contracts are the real margin driver",
+        "subreddit": "sweatystartup",
+        "upvotes": 312,
+        "comments": 88,
+        "permalink": "https://www.reddit.com/r/sweatystartup/"
+      },
+      "key_points_pos": ["Recurring maintenance revenue stabilizes cash flow"],
+      "key_points_neg": ["Technician churn hurts growth"]
+    },
+    "trends": {
+      "job_postings": "↑ 12%",
+      "new_entrants": "→"
+    },
+    "insights": ["Demand steady in coastal zip codes"],
+    "green_flags": ["Recurring revenue"],
+    "red_flags": ["Owner‑operator reliance"]
+  }
+}

@@ -1,30 +1,18 @@
-"""Configuration management for Scout"""
+"""Configuration management for Scout (compatibility wrapper)."""
 
-from pathlib import Path
-from dotenv import load_dotenv
-import os
-
-# Load environment variables
-load_dotenv()
+from scout.shared.settings import settings
 
 # API Keys
-GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY') or os.getenv('GOOGLE_PLACES_API_KEY')
+GOOGLE_MAPS_API_KEY = settings.google_maps_api_key
 
 # Paths
-PROJECT_ROOT = Path(__file__).parent.parent
-OUTPUT_DIR = PROJECT_ROOT / "outputs"
-CACHE_DIR = OUTPUT_DIR / "cache"
+PROJECT_ROOT = settings.project_root
+OUTPUT_DIR = settings.output_dir
+CACHE_DIR = settings.cache_dir
 
 # Constants
-CACHE_TTL_DAYS = 90  # Cache for 90 days
-MAX_RESULTS_DEFAULT = 500
-
-# Validation
-if not GOOGLE_MAPS_API_KEY:
-    raise ValueError(
-        "GOOGLE_MAPS_API_KEY not found in .env file. "
-        "Please add it to your .env file or set GOOGLE_PLACES_API_KEY environment variable."
-    )
+CACHE_TTL_DAYS = settings.cache_ttl_days
+MAX_RESULTS_DEFAULT = settings.max_results_default
 
 # Ensure directories exist
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

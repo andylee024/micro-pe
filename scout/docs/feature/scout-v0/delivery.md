@@ -345,9 +345,9 @@ scout research "HVAC in Los Angeles"
 - `scout.ui.components` (Teammate 4A)
 - `scout.ui.keyboard` (Teammate 4B)
 - `scout.ui.terminal` (Teammate 4C)
-- `scout.utils.export` (Teammate 3)
-- `scout.utils.errors` (Teammate 3)
-- `tools.google_maps_tool` (Teammate 1)
+- `scout.shared.export` (Teammate 3)
+- `scout.shared.errors` (Teammate 3)
+- `data_sources.maps.google_maps` (Teammate 1)
 
 ---
 

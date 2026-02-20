@@ -314,7 +314,7 @@ class KeyboardHandler:
 
 ---
 
-#### 5. Query Parser (`scout/utils/query_parser.py`)
+#### 5. Query Parser (`scout/shared/query_parser.py`)
 
 **Responsibilities:**
 - Parse natural language query into industry + location
@@ -349,7 +349,7 @@ def parse_query(query: str) -> Tuple[str, str]:
 
 ---
 
-#### 6. CSV Exporter (`scout/utils/export.py`)
+#### 6. CSV Exporter (`scout/shared/export.py`)
 
 **Responsibilities:**
 - Export businesses to CSV format
@@ -437,7 +437,7 @@ if not GOOGLE_MAPS_API_KEY:
 1. Set up project structure
 2. Create `scout/main.py` with Click commands
 3. Create `scout/config.py` for configuration
-4. Create `scout/utils/query_parser.py`
+4. Create `scout/shared/query_parser.py`
 5. Write tests for query parser
 
 **Deliverable:**
@@ -461,7 +461,7 @@ Location: Los Angeles, CA
 **Goal:** Fetch business data from Google Maps
 
 **Tasks:**
-1. Ensure `tools/google_maps_tool.py` works (already exists)
+1. Ensure `data_sources/maps/google_maps.py` works (already exists)
 2. Test with real API call: "HVAC in Los Angeles"
 3. Verify 500+ businesses returned
 4. Add caching (90-day TTL)
@@ -542,7 +542,7 @@ User presses Q → exits cleanly
 **Goal:** Export businesses to CSV file
 
 **Tasks:**
-1. Create `scout/utils/export.py`
+1. Create `scout/shared/export.py`
 2. Implement CSV export with proper formatting
 3. Generate timestamped filenames
 4. Display success message in UI
@@ -613,7 +613,7 @@ $ scout research "HVAC in Los Angeles"
 **Files to Create:**
 - `scout/main.py`
 - `scout/config.py`
-- `scout/utils/query_parser.py`
+- `scout/shared/query_parser.py`
 - `tests/test_query_parser.py`
 
 **Tasks:**
@@ -661,7 +661,7 @@ $ scout research "HVAC in Los Angeles"
 **Focus:** Milestones 5 & 6 (CSV export, error handling, polish)
 
 **Files to Create:**
-- `scout/utils/export.py`
+- `scout/shared/export.py`
 - `tests/test_export.py`
 - Additional error handling in existing files
 - README.md
@@ -709,7 +709,7 @@ dev = [
 ```
 
 **Already Available:**
-- `tools/google_maps_tool.py` - Google Maps integration (existing)
+- `data_sources/maps/google_maps.py` - Google Maps integration (existing)
 - `tools/base.py` - Tool base class with caching (existing)
 
 ---

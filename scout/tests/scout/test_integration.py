@@ -44,7 +44,7 @@ def temp_output_dir(tmp_path):
 
 def test_full_export_pipeline(mock_google_maps_response, temp_output_dir):
     """Test complete pipeline: fetch data -> export to CSV"""
-    from scout.utils.export import export_to_csv
+    from scout.shared.export import export_to_csv
 
     # Simulate the full pipeline
     businesses = mock_google_maps_response
@@ -75,7 +75,7 @@ def test_full_export_pipeline(mock_google_maps_response, temp_output_dir):
 
 def test_error_handling_empty_results(temp_output_dir):
     """Test that empty results are handled gracefully"""
-    from scout.utils.export import export_to_csv
+    from scout.shared.export import export_to_csv
 
     businesses = []
 
@@ -85,7 +85,7 @@ def test_error_handling_empty_results(temp_output_dir):
 
 def test_error_handling_missing_api_key():
     """Test that missing API key raises appropriate error"""
-    from scout.utils.errors import validate_api_key, ConfigurationError
+    from scout.shared.errors import validate_api_key, ConfigurationError
 
     with pytest.raises(ConfigurationError, match="API key is missing"):
         validate_api_key(None, "Google Maps")
@@ -99,7 +99,7 @@ def test_error_handling_missing_api_key():
 
 def test_error_handling_invalid_query():
     """Test that invalid queries are handled gracefully"""
-    from scout.utils.errors import validate_industry, validate_location, ValidationError
+    from scout.shared.errors import validate_industry, validate_location, ValidationError
 
     # Test empty industry
     with pytest.raises(ValidationError, match="Industry cannot be empty"):
@@ -118,7 +118,7 @@ def test_error_handling_invalid_query():
 
 def test_error_message_formatting():
     """Test that error messages are user-friendly"""
-    from scout.utils.errors import (
+    from scout.shared.errors import (
         APIError, NetworkError, FileIOError,
         format_error_message
     )
@@ -144,7 +144,7 @@ def test_error_message_formatting():
 
 def test_api_error_handling():
     """Test API error handling and conversion"""
-    from scout.utils.errors import handle_api_error, APIError
+    from scout.shared.errors import handle_api_error, APIError
 
     # Test timeout error
     timeout_error = Exception("Request timeout after 30 seconds")
@@ -165,7 +165,7 @@ def test_api_error_handling():
 
 def test_file_error_handling():
     """Test file error handling and conversion"""
-    from scout.utils.errors import handle_file_error, FileIOError
+    from scout.shared.errors import handle_file_error, FileIOError
 
     # Test permission error
     perm_error = Exception("Permission denied")
@@ -181,7 +181,7 @@ def test_file_error_handling():
 
 def test_safe_execute_success():
     """Test safe_execute with successful function"""
-    from scout.utils.errors import safe_execute
+    from scout.shared.errors import safe_execute
 
     def successful_function(x, y):
         return x + y
@@ -194,7 +194,7 @@ def test_safe_execute_success():
 
 def test_safe_execute_failure():
     """Test safe_execute with failing function"""
-    from scout.utils.errors import safe_execute
+    from scout.shared.errors import safe_execute
 
     def failing_function():
         raise ValueError("Something went wrong")
@@ -208,7 +208,7 @@ def test_safe_execute_failure():
 
 def test_handle_errors_decorator_success():
     """Test handle_errors decorator with successful function"""
-    from scout.utils.errors import handle_errors
+    from scout.shared.errors import handle_errors
 
     @handle_errors(default_return=None)
     def successful_function():
@@ -220,7 +220,7 @@ def test_handle_errors_decorator_success():
 
 def test_handle_errors_decorator_failure():
     """Test handle_errors decorator with failing function"""
-    from scout.utils.errors import handle_errors
+    from scout.shared.errors import handle_errors
 
     @handle_errors(default_return=[])
     def failing_function():
@@ -232,7 +232,7 @@ def test_handle_errors_decorator_failure():
 
 def test_export_with_partial_data(temp_output_dir):
     """Test that export handles businesses with missing fields"""
-    from scout.utils.export import export_to_csv
+    from scout.shared.export import export_to_csv
 
     businesses = [
         {'name': 'Complete Business', 'address': '123 Main St', 'phone': '555-0100', 'website': 'test.com'},
@@ -270,7 +270,7 @@ def test_export_with_partial_data(temp_output_dir):
 
 def test_concurrent_exports(mock_google_maps_response, temp_output_dir):
     """Test that multiple exports can happen without conflicts"""
-    from scout.utils.export import export_to_csv
+    from scout.shared.export import export_to_csv
 
     # Export same industry, different locations
     path1 = export_to_csv(
@@ -295,7 +295,7 @@ def test_concurrent_exports(mock_google_maps_response, temp_output_dir):
 
 def test_large_dataset_export(temp_output_dir):
     """Test export performance with large dataset"""
-    from scout.utils.export import export_to_csv
+    from scout.shared.export import export_to_csv
 
     # Create 1000 businesses
     businesses = [
@@ -328,7 +328,7 @@ def test_large_dataset_export(temp_output_dir):
 
 def test_export_message_formatting():
     """Test export success message formatting"""
-    from scout.utils.export import format_export_message
+    from scout.shared.export import format_export_message
 
     path = Path("outputs/hvac_los_angeles_2026-02-19.csv")
     message = format_export_message(path, 487)
@@ -344,7 +344,7 @@ def test_export_message_formatting():
 
 def test_validation_pipeline():
     """Test full validation pipeline"""
-    from scout.utils.errors import (
+    from scout.shared.errors import (
         validate_api_key, validate_industry, validate_location,
         ConfigurationError, ValidationError
     )

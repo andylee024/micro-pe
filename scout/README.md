@@ -90,18 +90,23 @@ scout research "HVAC in Los Angeles" --no-cache
 
 ```
 scout/
-├── scrapers/              # Data collection modules
-│   ├── google_maps.py     # Universe builder (find all businesses)
-│   └── bizbuysell.py      # Benchmark builder (financial distributions)
+├── scout/                 # Terminal app (CLI, UI, domain, adapters)
+│   ├── application/
+│   ├── domain/
+│   ├── adapters/
+│   ├── ui/
+│   └── shared/
 │
-├── utils/                 # Helper functions
-│   └── financials.py      # Calculate multiples, apply benchmarks
+├── data_sources/          # Data acquisition layer (scrapers/tools)
+│   ├── maps/
+│   ├── marketplaces/
+│   ├── fdd/
+│   └── shared/
 │
 ├── outputs/               # All results saved here
-│
-├── config.py              # Configuration management
-├── main.py                # CLI entry point
-└── requirements.txt       # Dependencies
+├── config/                # Config helpers
+├── scripts/               # Demo and ops scripts
+└── pyproject.toml         # Dependencies / packaging
 ```
 
 ## How It Works

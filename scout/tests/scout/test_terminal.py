@@ -5,14 +5,17 @@ from scout.ui.terminal import ScoutTerminal
 from scout.ui.components import (
     create_header,
     create_business_table,
+    create_footer,
+    create_detail_panel,
     create_status_bar,
     create_progress_panel,
     create_help_panel,
     create_footer_instructions,
-    create_main_layout
+    create_main_layout,
 )
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from rich.layout import Layout
 
 
@@ -32,8 +35,10 @@ def test_scout_terminal_init():
     assert terminal.use_cache is True
     assert terminal.max_results == 500
     assert terminal.scroll_offset == 0
+    assert terminal.selected_index == 0
+    assert terminal.opened_business is None
     assert len(terminal.businesses) == 0
-    assert terminal.page_size == 20
+    assert terminal.page_size == 8
 
 
 # Test scrolling functionality
@@ -53,38 +58,36 @@ def sample_businesses():
 
 
 def test_scroll_down(sample_businesses):
-    """Test scrolling down through businesses"""
+    """Test scrolling down advances the cursor"""
     terminal = ScoutTerminal(industry="HVAC", location="LA")
     terminal.businesses = sample_businesses
-    initial_offset = terminal.scroll_offset
+    terminal.selected_index = 0
 
     terminal.scroll_down()
 
-    assert terminal.scroll_offset == initial_offset + 1
+    assert terminal.selected_index == 1
 
 
 def test_scroll_down_at_bottom(sample_businesses):
-    """Test scrolling down when already at bottom"""
+    """Test scrolling down when cursor is at last business does nothing"""
     terminal = ScoutTerminal(industry="HVAC", location="LA")
     terminal.businesses = sample_businesses
-    max_offset = len(terminal.businesses) - terminal.page_size
-    terminal.scroll_offset = max_offset
+    terminal.selected_index = len(sample_businesses) - 1
 
     terminal.scroll_down()
 
-    # Should stay at max offset
-    assert terminal.scroll_offset == max_offset
+    assert terminal.selected_index == len(sample_businesses) - 1
 
 
 def test_scroll_up(sample_businesses):
-    """Test scrolling up through businesses"""
+    """Test scrolling up moves cursor up"""
     terminal = ScoutTerminal(industry="HVAC", location="LA")
     terminal.businesses = sample_businesses
-    terminal.scroll_offset = 10
+    terminal.selected_index = 10
 
     terminal.scroll_up()
 
-    assert terminal.scroll_offset == 9
+    assert terminal.selected_index == 9
 
 
 def test_scroll_up_at_top(sample_businesses):
@@ -107,18 +110,18 @@ def test_page_down(sample_businesses):
 
     terminal.page_down()
 
-    assert terminal.scroll_offset == 20
+    assert terminal.scroll_offset == terminal.page_size
 
 
 def test_page_up(sample_businesses):
     """Test page up scrolling"""
     terminal = ScoutTerminal(industry="HVAC", location="LA")
     terminal.businesses = sample_businesses
-    terminal.scroll_offset = 40
+    terminal.scroll_offset = terminal.page_size * 2
 
     terminal.page_up()
 
-    assert terminal.scroll_offset == 20
+    assert terminal.scroll_offset == terminal.page_size
 
 
 def test_scroll_to_top(sample_businesses):
@@ -156,11 +159,95 @@ def test_toggle_help():
     assert terminal.show_help == initial_state
 
 
+# Test cursor navigation and detail view
+
+def test_cursor_moves_with_scroll_down(sample_businesses):
+    """Test that selected_index advances when scrolling down"""
+    terminal = ScoutTerminal(industry="HVAC", location="LA")
+    terminal.businesses = sample_businesses
+    terminal.selected_index = 0
+
+    terminal.scroll_down()
+
+    assert terminal.selected_index == 1
+
+
+def test_cursor_viewport_follows_down(sample_businesses):
+    """Test that viewport scrolls to keep cursor visible when moving down"""
+    terminal = ScoutTerminal(industry="HVAC", location="LA")
+    terminal.businesses = sample_businesses
+    # Place cursor at last visible row (page_size - 1 with offset 0)
+    terminal.selected_index = terminal.page_size - 1
+    terminal.scroll_offset = 0
+
+    terminal.scroll_down()
+
+    assert terminal.scroll_offset == 1
+    assert terminal.selected_index == terminal.page_size
+
+
+def test_cursor_viewport_follows_up(sample_businesses):
+    """Test that viewport scrolls to keep cursor visible when moving up"""
+    terminal = ScoutTerminal(industry="HVAC", location="LA")
+    terminal.businesses = sample_businesses
+    terminal.selected_index = 5
+    terminal.scroll_offset = 5
+
+    terminal.scroll_up()
+
+    assert terminal.scroll_offset == 4
+    assert terminal.selected_index == 4
+
+
+def test_select_business_enters_detail(sample_businesses):
+    """Test that selecting a business populates the profile pane"""
+    terminal = ScoutTerminal(industry="HVAC", location="LA")
+    terminal.businesses = sample_businesses
+    terminal.selected_index = 3
+
+    terminal.select_business()
+
+    assert terminal.opened_business == sample_businesses[3]
+
+
+def test_close_detail_returns_to_list(sample_businesses):
+    """Test that closing detail clears the profile pane"""
+    terminal = ScoutTerminal(industry="HVAC", location="LA")
+    terminal.businesses = sample_businesses
+    terminal.opened_business = sample_businesses[0]
+
+    terminal.close_detail()
+
+    assert terminal.opened_business is None
+
+
+def test_select_business_no_data():
+    """Test selecting with no businesses loaded does nothing"""
+    terminal = ScoutTerminal(industry="HVAC", location="LA")
+    terminal.businesses = []
+
+    terminal.select_business()
+
+    assert terminal.opened_business is None
+
+
 # Test UI components
 
 def test_create_header():
     """Test header panel creation"""
     panel = create_header("HVAC in Los Angeles")
+
+    assert isinstance(panel, Panel)
+
+
+def test_create_header_with_stats():
+    """Test header includes stats when provided"""
+    panel = create_header(
+        query="HVAC in LA",
+        num_businesses=42,
+        cached=True,
+        status_message="Ready",
+    )
 
     assert isinstance(panel, Panel)
 
@@ -249,15 +336,57 @@ def test_create_footer_instructions():
     assert isinstance(panel, Panel)
 
 
+def test_create_footer_list_mode():
+    """Test minimal footer in list mode"""
+    text = create_footer(offset=0, total=50, limit=20, view_mode="list")
+
+    assert isinstance(text, Text)
+
+
+def test_create_footer_detail_mode():
+    """Test minimal footer in detail mode"""
+    text = create_footer(offset=0, total=50, limit=20, view_mode="detail")
+
+    assert isinstance(text, Text)
+
+
+def test_create_detail_panel():
+    """Test detail panel creation"""
+    business = {
+        "name": "Test Business",
+        "phone": "(555) 123-4567",
+        "website": "test.com",
+        "address": "123 Main St",
+        "rating": 4.5,
+    }
+    panel = create_detail_panel(business)
+
+    assert isinstance(panel, Panel)
+
+
+def test_create_business_table_selected_row():
+    """Test that selected row index is accepted without error"""
+    businesses = [
+        {"name": f"Biz {i}", "phone": "555-0000", "website": "", "address": "1 Main St"}
+        for i in range(5)
+    ]
+    table = create_business_table(businesses, offset=0, limit=20, selected_index=2)
+
+    assert isinstance(table, Table)
+    assert table.row_count == 5
+
+
 def test_create_main_layout():
-    """Test main layout creation"""
+    """Test 4-pane layout creation"""
     layout = create_main_layout()
 
     assert isinstance(layout, Layout)
     assert layout.get("header") is not None
-    assert layout.get("body") is not None
-    assert layout.get("instructions") is not None
-    assert layout.get("status") is not None
+    assert layout.get("market_overview") is not None
+    assert layout.get("target_list") is not None
+    assert layout.get("business_profile") is not None
+    assert layout.get("market_pulse") is not None
+    assert layout.get("footer") is not None
 
 
 # Test edge cases

@@ -14,13 +14,13 @@ Successfully built CSV export functionality, comprehensive error handling, exten
 
 ### Core Functionality
 
-1. **scout/utils/export.py** (115 lines)
+1. **scout/shared/export.py** (115 lines)
    - `export_to_csv()` - Export businesses to timestamped CSV files
    - `format_export_message()` - Format success messages
    - Handles missing fields, Unicode, and creates directories
    - Supports custom output directories
 
-2. **scout/utils/errors.py** (267 lines)
+2. **scout/shared/errors.py** (267 lines)
    - Custom error classes: `APIError`, `NetworkError`, `FileIOError`, `ConfigurationError`, `ValidationError`
    - `format_error_message()` - User-friendly error formatting
    - `safe_execute()` - Safe function execution wrapper
@@ -304,7 +304,7 @@ TOTAL: 29 tests passed in 0.06s
 
 ### CSV Export
 ```python
-from scout.utils.export import export_to_csv, format_export_message
+from scout.shared.export import export_to_csv, format_export_message
 
 businesses = [
     {'name': 'Cool Air HVAC', 'address': '123 Main St', 'phone': '555-0100'},
@@ -324,7 +324,7 @@ print(message)
 
 ### Error Handling
 ```python
-from scout.utils.errors import (
+from scout.shared.errors import (
     handle_api_error, format_error_message, validate_api_key
 )
 
@@ -369,8 +369,8 @@ All core functionality is working as designed. The following are pending full in
 5. Validate performance with real data
 
 ### For Teammate 1 (CLI/Google Maps)
-1. Use `scout.utils.export.export_to_csv()` for CSV exports
-2. Use `scout.utils.errors` for error handling
+1. Use `scout.shared.export.export_to_csv()` for CSV exports
+2. Use `scout.shared.errors` for error handling
 3. Integrate with updated `main.py`
 
 ### For Teammate 2 (Terminal UI)
@@ -384,8 +384,8 @@ All core functionality is working as designed. The following are pending full in
 
 | File | Status | Lines | Purpose |
 |------|--------|-------|---------|
-| scout/utils/export.py | ✅ New | 115 | CSV export functionality |
-| scout/utils/errors.py | ✅ New | 267 | Error handling system |
+| scout/shared/export.py | ✅ New | 115 | CSV export functionality |
+| scout/shared/errors.py | ✅ New | 267 | Error handling system |
 | scout/ui/terminal.py | ✅ Updated | +30 | Integrated export & errors |
 | scout/main.py | ✅ Updated | +60 | Integrated errors & terminal |
 | tests/test_export.py | ✅ New | 278 | Export tests |
