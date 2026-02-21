@@ -574,6 +574,7 @@ def create_scout_assistant_panel(
     scope_count: int = 0,
     active_filter: str = "",
     focused: bool = False,
+    chat_scroll_offset: int = 0,
 ) -> Panel:
     """Chat interface pane for the scout assistant."""
     from datetime import date
@@ -588,7 +589,10 @@ def create_scout_assistant_panel(
         t.append("         Summarize the key risks.\n", style="dim white")
         t.append("         Show businesses near Pasadena.\n", style="dim white")
     else:
-        for entry in chat_history:
+        if chat_scroll_offset > 0:
+            t.append(f"\n  ↑ {chat_scroll_offset} earlier message(s) — k to scroll up\n\n", style="dim white")
+        visible_history = chat_history[chat_scroll_offset:]
+        for entry in visible_history:
             q = entry.get("q", "")
             a = entry.get("a", "")
             t.append("  you  ", style="dim white")

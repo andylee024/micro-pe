@@ -14,6 +14,7 @@ class Settings:
 
     # API keys
     google_maps_api_key: str | None = os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("GOOGLE_PLACES_API_KEY")
+    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY") or ""
 
     # Paths
     project_root: Path = Path(__file__).resolve().parents[2]

@@ -76,6 +76,7 @@ class ScoutTerminal:
         self.chat_history: List[Dict] = []
         self.chat_input: str = ""
         self.chat_mode: bool = False
+        self.chat_scroll_offset: int = 0
 
         # Pane focus state
         self.focused_pane: str = "target_list"  # market_overview | market_pulse | target_list | scout_assistant
@@ -239,6 +240,7 @@ class ScoutTerminal:
                 self.chat_mode,
                 scope_count=len(self.businesses),
                 focused=self.focused_pane == "scout_assistant",
+                chat_scroll_offset=self.chat_scroll_offset,
             )
         )
 
@@ -372,15 +374,31 @@ class ScoutTerminal:
             self.chat_input = self.chat_input[:-1]
             self._update_display()
 
+    def chat_scroll_up(self) -> None:
+        """Scroll chat history up."""
+        if self.chat_scroll_offset > 0:
+            self.chat_scroll_offset -= 1
+            self._update_display()
+
+    def chat_scroll_down(self) -> None:
+        """Scroll chat history down."""
+        if self.chat_scroll_offset < max(0, len(self.chat_history) - 1):
+            self.chat_scroll_offset += 1
+            self._update_display()
+
     def chat_submit(self) -> None:
         q = self.chat_input.strip()
         if not q:
             self.exit_chat_mode()
             return
-        self.chat_history.append({"q": q, "a": "..."})
+        # Optimistic UI: show question + thinking indicator
+        self.chat_history.append({"q": q, "a": "thinking..."})
+        self.chat_scroll_offset = max(0, len(self.chat_history) - 1)
         self.chat_input = ""
         self.chat_mode = False
         self._update_display()
+        # Fire async API call
+        threading.Thread(target=self._run_assistant, args=(q,), daemon=True).start()
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
@@ -481,6 +499,121 @@ class ScoutTerminal:
         if self.businesses and 0 <= self.selected_index < len(self.businesses):
             return self.businesses[self.selected_index]
         return None
+
+    # ── Chat helpers ──────────────────────────────────────────────────────────
+
+    def _build_assistant_context(self) -> str:
+        """Build system prompt with full market context for Claude."""
+        lines = [
+            "You are Scout, a concise research assistant for small business acquisition.",
+            "The user is evaluating businesses to potentially acquire.",
+            "",
+            f"MARKET: {self.industry} businesses in {self.location}",
+            f"Total businesses found: {len(self.businesses)}",
+            "",
+        ]
+
+        # Market financials
+        fin = (self.market_overview or {}).get("financial", {})
+        outlook = (self.market_overview or {}).get("outlook", {})
+        quality = (self.market_overview or {}).get("quality", {})
+        if fin.get("median_revenue"):
+            lines.append("MARKET BENCHMARKS:")
+            lines.append(f"  Median revenue: {fin.get('median_revenue', '—')}")
+            if fin.get("ebitda_margin"):
+                lines.append(f"  EBITDA margin: {fin.get('ebitda_margin', '—')} (range: {fin.get('margin_range', '—')})")
+            if fin.get("typical_acquisition"):
+                lines.append(f"  Typical acquisition price: {fin.get('typical_acquisition', '—')}")
+            if outlook.get("grade"):
+                lines.append(f"  Market grade: {outlook.get('grade', '—')}")
+            if quality.get("avg_rating"):
+                lines.append(f"  Avg business rating: {quality.get('avg_rating', '—')}")
+            lines.append("")
+
+        # Business list
+        if self.businesses:
+            lines.append("BUSINESSES IN THIS MARKET:")
+            sorted_biz = sorted(self.businesses, key=lambda b: b.get("reviews") or 0, reverse=True)
+            for i, b in enumerate(sorted_biz[:25], 1):
+                name = b.get("name", "—")
+                rating = b.get("rating", "")
+                reviews = b.get("reviews") or 0
+                phone = b.get("phone", "")
+                website = b.get("website", "")
+                conf = b.get("confidence", "")
+                rev = b.get("est_revenue") or b.get("revenue", "")
+                parts = [f"{i}. {name}"]
+                if rating:
+                    parts.append(f"{rating}★")
+                if reviews:
+                    parts.append(f"{reviews:,} reviews")
+                if rev:
+                    parts.append(f"~{rev} revenue")
+                if conf:
+                    parts.append(f"({conf} confidence)")
+                if phone:
+                    parts.append(f"phone: {phone}")
+                if website:
+                    parts.append(f"web: {website}")
+                lines.append("  " + "  |  ".join(parts))
+            lines.append("")
+
+        # Pulse (opportunities and risks)
+        pulse = self.market_pulse or {}
+        opps = pulse.get("opportunities", [])
+        risks = pulse.get("risks", [])
+        if opps:
+            lines.append("MARKET OPPORTUNITIES: " + "; ".join(opps))
+        if risks:
+            lines.append("MARKET RISKS: " + "; ".join(risks))
+        if opps or risks:
+            lines.append("")
+
+        lines.extend([
+            "INSTRUCTIONS:",
+            "- Answer in 1-4 sentences. Be specific — cite business names and exact numbers.",
+            "- If asked to find or filter businesses, list matching names with their key stats.",
+            "- If asked about market outlook, cite the grade and benchmark figures.",
+            "- Do not repeat back the question. Get straight to the answer.",
+        ])
+        return "\n".join(lines)
+
+    def _run_assistant(self, query: str) -> None:
+        """Call Claude API with streaming, update last chat entry in real time."""
+        from scout import config
+        if not config.ANTHROPIC_API_KEY:
+            self.chat_history[-1]["a"] = (
+                "ANTHROPIC_API_KEY not configured.\n"
+                "Add it to your .env file to enable the scout assistant."
+            )
+            self._update_display()
+            return
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+            system = self._build_assistant_context()
+            buffer = ""
+            with client.messages.stream(
+                model="claude-sonnet-4-6",
+                max_tokens=400,
+                system=system,
+                messages=[{"role": "user", "content": query}],
+            ) as stream:
+                for text in stream.text_stream:
+                    buffer += text
+                    self.chat_history[-1]["a"] = buffer + "▌"
+                    self._update_display()
+            self.chat_history[-1]["a"] = buffer
+            self._update_display()
+        except ImportError:
+            self.chat_history[-1]["a"] = (
+                "anthropic package not installed.\n"
+                "Run: pip install anthropic"
+            )
+            self._update_display()
+        except Exception as e:
+            self.chat_history[-1]["a"] = f"Error: {str(e)}"
+            self._update_display()
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 

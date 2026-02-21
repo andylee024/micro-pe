@@ -4,6 +4,7 @@ from scout.shared.settings import settings
 
 # API Keys
 GOOGLE_MAPS_API_KEY = settings.google_maps_api_key
+ANTHROPIC_API_KEY: str = settings.anthropic_api_key
 
 # Paths
 PROJECT_ROOT = settings.project_root

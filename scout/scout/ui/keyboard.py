@@ -83,9 +83,15 @@ class KeyboardHandler:
         elif key.lower() == 'b':
             self.terminal.close_detail()
         elif key.lower() == 'j':
-            self.terminal.scroll_down()
+            if self.terminal.focused_pane == "scout_assistant":
+                self.terminal.chat_scroll_down()
+            else:
+                self.terminal.scroll_down()
         elif key.lower() == 'k':
-            self.terminal.scroll_up()
+            if self.terminal.focused_pane == "scout_assistant":
+                self.terminal.chat_scroll_up()
+            else:
+                self.terminal.scroll_up()
         elif key == 'g':
             if self._pending_g and (now - self._last_g_time) <= 0.7:
                 self.terminal.scroll_to_top()
