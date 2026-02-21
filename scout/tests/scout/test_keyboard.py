@@ -182,15 +182,27 @@ class TestCharacterKeys:
 
         assert terminal.show_help == (not initial_state)
 
-    def test_r_key_triggers_refresh(self, handler, terminal):
-        """Test 'r' key triggers data refresh"""
+    def test_shift_r_key_triggers_refresh(self, handler, terminal):
+        """Test 'R' key triggers data refresh"""
         terminal.use_cache = True
 
         with patch.object(terminal, '_fetch_data'):
-            handler._dispatch_key('r')
+            handler._dispatch_key('R')
 
         assert terminal.use_cache is False
         assert "Refreshing" in terminal.status
+
+    def test_r_key_opens_reviews(self, handler, terminal):
+        """Test 'r' key opens reviews"""
+        with patch.object(terminal, 'open_reviews') as mock_open:
+            handler._dispatch_key('r')
+        mock_open.assert_called_once()
+
+    def test_w_key_opens_website(self, handler, terminal):
+        """Test 'w' key opens website"""
+        with patch.object(terminal, 'open_website') as mock_open:
+            handler._dispatch_key('w')
+        mock_open.assert_called_once()
 
     def test_unknown_key_ignored(self, handler, terminal):
         """Test unknown keys are ignored without error"""

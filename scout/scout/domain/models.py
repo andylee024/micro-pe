@@ -46,3 +46,4 @@ class ResearchResult:
     summary: MarketSummary
     businesses: List[Business]
     pulse: dict = field(default_factory=dict)
+    market_overview: dict = field(default_factory=dict)

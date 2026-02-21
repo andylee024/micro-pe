@@ -3,7 +3,7 @@
 **Product Vision:** Bloomberg Terminal for Small Business Acquisition
 **Target Users:** Solo searchers and small PE firms evaluating SMB acquisitions
 **Product Type:** Terminal-based intelligence platform
-**Last Updated:** 2026-02-20
+**Last Updated:** 2026-02-21
 **Status:** Active
 
 ---
@@ -52,10 +52,74 @@ Input a thesis (e.g., “HVAC businesses in Los Angeles”) → output a ranked 
 $ scout research "HVAC businesses in Los Angeles"
 ```
 
-**Outcome:** terminal UI with a market overview, a ranked target list, a detail pane, and a market‑pulse pane. The user should know within minutes:
+**Outcome:** A 4-pane terminal UI that answers three questions within minutes:
 - Is this market attractive?
-- Which businesses to call first?
-- What price range is reasonable?
+- Which businesses to contact first?
+- What does the operator landscape actually look like?
+
+### Layout: Two-Row Hierarchy
+
+The UI is organized around a deliberate information hierarchy. The top row is **context** (read-only reference). The bottom row is **work** (interactive).
+
+```
+  SCOUT  hvac businesses  ·  los angeles, ca    47 targets  ·  B+  ·  live
+  ┌──────────────────────────────────────────────┬─────────────────────────────────────────┐
+  │ market overview                        B+    │ market pulse                 23 threads │
+  │                                              │                                         │
+  │  47 businesses  ·  high density              │  BUSINESS MODEL                         │
+  │  est. $58M total market                      │    Customers: Residential + commercial  │
+  │                                              │    Revenue: Recurring + one-off          │
+  │  FINANCIALS  12 FDDs · medium                │                                         │
+  │    Median revenue    $1.2M                   │  OPERATING MODELS                       │
+  │    EBITDA margin     18%  (12–24%)           │    • Owner-operator (solo/crew)          │
+  │    Typical acq.      $540K – $2.1M           │    • Multi-tech local operator           │
+  │                                              │    • Commercial-leaning operator         │
+  │  QUALITY                                     │    • Franchise / multi-location          │
+  │    Avg rating   ★★★★☆  4.1                   │                                         │
+  │    Sentiment    72% positive                 │  OPPORTUNITIES                          │
+  │    Review vol   8,400 total                  │    ▲ Recurring contracts expand margins  │
+  │                                              │    ▲ Fragmented market enables roll-up   │
+  │  TRENDS  30d                                 │    ▲ Essential demand supports resilience│
+  │    Job postings  ↑ 45                        │                                         │
+  │    New entrants  3                           │  RISKS                                  │
+  │    Search vol.   ↑ 12%                       │    ▼ Tech shortage limits scale         │
+  │                                              │    ▼ Price pressure compresses margin    │
+  │  OUTLOOK  Grade B+                           │    ▼ Best operators rarely sell          │
+  │                                              │                                         │
+  │                                              │  SOURCES                                │
+  │                                              │    Reddit[15] · Reviews[420] · Reports[8]│
+  └──────────────────────────────────────────────┴─────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────┬─────────────────────────────────────────┐
+  │ target list                    1–8 of 47     │ scout assistant          claude sonnet  │
+  │                                              │                                         │
+  │  1  Cool Air HVAC                            │  ─ ─ ─ ─ ─ ─  feb 21  ─ ─ ─ ─ ─ ─ ─  │
+  │     4.8★  350 reviews                        │                                         │
+  │                                              │  you  Companies with 150+ reviews?      │
+  │  2  Premier Climate Control                  │   ◆   3 match: Cool Air HVAC (350),     │
+  │     4.6★  210 reviews                        │       SoCal Heating (180), Rapid (310). │
+  │                                              │       [Enter] apply filter              │
+  │ ▶3  SoCal Heating & Air                      │                                         │
+  │     4.7★  180 reviews                        │  you  Summarize the key risks.          │
+  │     (626) 555-0300  ·  socalheating.com      │   ◆   3 risks: tech shortage limits     │
+  │     [W] website  ·  [R] reviews              │       scale, price pressure compresses  │
+  │                                              │       margins, top operators rarely sell.│
+  │  4  Valley Air Experts                       │                                         │
+  │     4.5★   72 reviews                        │                                         │
+  │                                              │  [/] > _           47 in scope · no filter│
+  └──────────────────────────────────────────────┴─────────────────────────────────────────┘
+  ↑↓/j/k  navigate    Enter  open    /  chat    E  export    H  help    Q  quit
+```
+
+### Pane Roles
+
+| Pane | Row | Interactive | Purpose |
+|---|---|---|---|
+| **Market Overview** | Top-left | No | Financial benchmarks, quality metrics, trends, outlook grade |
+| **Market Pulse** | Top-right | No | Business model, operating models, opportunities, risks, sources |
+| **Target List** | Bottom-left | Yes — `↑↓`, `Enter` | Scrollable ranked business list; `Enter` expands contact detail |
+| **Scout Assistant** | Bottom-right | Yes — `/` to type | Chat interface for querying the market; powered by Claude Sonnet |
+
+**Design principle:** the top row informs, the bottom row acts. Market Overview and Market Pulse are read-only reference panels — you interact with their content through the Scout Assistant (`/`).
 
 ---
 
@@ -72,99 +136,92 @@ $ scout research "HVAC businesses in Los Angeles"
 
 ## 5) Capabilities (Now → Next → Later)
 
-**Now (V0)**
+**Now (V0) ✅**
 - Google Maps universe building
-- Terminal UI with list + export
-- Query parsing and caching
+- 4-pane terminal UI — market overview, market pulse, target list, scout assistant
+- Keyboard navigation + CSV export
+- Query parsing and 90-day caching
+- Scout assistant chat interface (input scaffolding; AI backend in V1)
 
 **Next (V1)**
-- Benchmarks from BizBuySell and FDDs
-- Business detail view + financial estimates
-- Market pulse signals (Reddit)
+- Live AI responses in scout assistant (Claude Sonnet)
+- Benchmarks from BizBuySell and FDDs (financial estimates per business)
+- Market pulse from real data sources (Reddit, reviews)
+- Filter target list from assistant queries
 
 **Later (V2+)**
-- Scoring engine
-- Watchlists + workflow
-- Multi‑source enrichment (web, property, licensing)
+- Scoring engine and ranked targets
+- Watchlists + outreach workflow
+- Multi‑source enrichment (owner info, licensing, property)
 
 ---
 
 ## 6) Roadmap (Phases)
 
-### ✅ Phase 0: MVP Terminal (Completed)
-**Goal:** prove the terminal experience for market research.
+### ✅ V0: Terminal UI (Completed — Feb 2026)
+**Goal:** prove the terminal experience and establish the full UI shell.
 
 **Shipped**
-- Terminal UI with Rich
-- Google Maps integration
+- 4-pane Bloomberg-style layout (market overview, market pulse, target list, scout assistant)
+- Two-row hierarchy: context row (top) + work row (bottom)
+- Google Maps universe building
+- Keyboard navigation (`↑↓`, `j/k`, `Enter`, `gg/G`, `Esc`)
 - CSV export
-- Keyboard navigation
-- Query parser
-- 90‑day caching
+- Query parser + 90-day caching
+- Scout assistant panel with chat input scaffolding (`/` to activate)
 
 **Success Criteria**
-- <5 seconds for cached queries
-- Reliable export and navigation
+- <5 seconds for cached queries ✅
+- Reliable export and navigation ✅
+- Full UI shell navigable with mock data ✅
 
 ---
 
-### 🔨 Phase 1: Intelligence Layer (Current)
-**Goal:** add financial benchmarks and multi‑source intelligence.
+### 🔨 V1: Intelligence Layer (Current)
+**Goal:** make every pane live — real data, real assistant responses.
 
 **Planned**
-- BizBuySell benchmarks (revenue, cash flow, multiples)
-- FDD benchmarks (Item 19 extraction + aggregation)
-- Detail view with estimated financials
-- Benchmarks panel
+- Scout assistant: live Claude Sonnet responses via API
+- Assistant can filter and sort the target list from natural language
+- Market overview populated from real benchmarks (BizBuySell + FDDs)
+- Market pulse from real sources (Reddit, reviews, reports)
+- Per-business financial estimates with confidence ranges
 
 **Success Criteria**
+- Assistant answers market questions with cited sources
+- Assistant can apply filters to target list ("show me 150+ reviews")
 - Benchmarks available for 10+ industries
 - Estimated revenue for 80%+ of businesses
-- Confidence scores on estimates
 
 ---
 
-### 📋 Phase 2: Scoring Engine (Next)
-**Goal:** rank businesses by acquisition attractiveness.
+### 📋 V2: Scoring & Workflow (Next)
+**Goal:** rank businesses and support an outreach workflow.
 
 **Planned**
-- Composite scoring model (0–100)
-- Signals: review velocity, business age, margin estimates
-- Sort, filter, and export with score
-- Watchlist + outreach workflow
+- Composite acquisition score (0–100) per business
+- Signals: review velocity, business age, margin vs benchmark
+- Sort and filter by score
+- Watchlist + outreach tracking
 
 **Success Criteria**
 - Top 20 scored businesses are consistently strong targets
-- Users can build a pipeline directly from the UI
+- Users build a contact pipeline directly from the UI
 
 ---
 
-### 🚀 Phase 3: Advanced Intelligence (Future)
-**Goal:** richer market intelligence and enrichment.
+### 🚀 V3: Enrichment (Future)
+**Goal:** deeper intelligence per business.
 
 **Planned**
-- Reddit sentiment summaries
-- Local database + sync
-- Bloomberg‑style 4‑pane layout
-- Enrichment tools (owner info, licensing, property)
+- Owner signals (LinkedIn, property records, licensing)
+- Secretary of State filings (age, registered agent)
+- Google Street View / photos
+- Proactive alerts (new listings, review spikes)
 
 **Success Criteria**
 - Full market intelligence in <5 minutes
-- 90%+ coverage on scored businesses
-
----
-
-### 🤖 Phase 4: AI Agent Layer (Vision)
-**Goal:** conversational research assistant.
-
-**Planned**
-- Natural language interface
-- Automated workflows (weekly deal lists)
-- Agent tool‑calling for multi‑step research
-
-**Success Criteria**
-- Multi‑turn research and synthesis
-- Proactive insights and recommendations
+- 90%+ coverage on enrichment fields for top targets
 
 ---
 

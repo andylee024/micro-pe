@@ -46,6 +46,10 @@ class KeyboardHandler:
         Args:
             key: The key that was pressed
         """
+        if self.terminal.chat_mode:
+            self._handle_chat_key(key)
+            return
+
         now = time.monotonic()
         if self._pending_g and (now - self._last_g_time) > 0.7:
             self._pending_g = False
@@ -90,13 +94,34 @@ class KeyboardHandler:
             self.terminal.scroll_to_bottom()
         elif key.lower() == 'e':
             self.terminal.export_csv()
+        elif key.lower() == 'w':
+            self.terminal.open_website()
+        elif key == 'R':
+            self.terminal.refresh_data()
+        elif key.lower() == 'r':
+            self.terminal.open_reviews()
         elif key.lower() == 'q':
             self.terminal.quit()
             self.running = False
         elif key.lower() == 'h':
             self.terminal.toggle_help()
-        elif key.lower() == 'r':
-            self.terminal.refresh_data()
+        elif key == '/':
+            self.terminal.enter_chat_mode()
+        elif key in ('\t', getattr(readchar.key, 'TAB', None)):
+            self.terminal.focus_next_pane()
+        elif key.lower() == 's':
+            self.terminal.toggle_sources()
+
+    def _handle_chat_key(self, key: str) -> None:
+        """Handle key press while in chat input mode."""
+        if key in (getattr(readchar.key, "ESCAPE", None), '\x1b'):
+            self.terminal.exit_chat_mode()
+        elif key in (readchar.key.ENTER, '\r', '\n'):
+            self.terminal.chat_submit()
+        elif key in (getattr(readchar.key, "BACKSPACE", None), '\x7f', '\x08'):
+            self.terminal.chat_backspace()
+        elif len(key) == 1 and key.isprintable():
+            self.terminal.chat_type(key)
 
     def stop(self) -> None:
         """Stop the keyboard event loop"""

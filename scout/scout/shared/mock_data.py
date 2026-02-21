@@ -42,27 +42,53 @@ def load_mock_result(path: str | Path | None = None) -> ResearchResult:
         benchmarks=benchmarks,
     )
 
+    base_keys = {
+        "name",
+        "address",
+        "phone",
+        "website",
+        "category",
+        "rating",
+        "reviews",
+        "place_id",
+        "lat",
+        "lng",
+        "estimated_revenue",
+        "estimated_cash_flow",
+        "estimated_value",
+        "confidence",
+    }
+
     businesses = []
     for b in payload.get("businesses", []) or []:
-        businesses.append(
-            Business(
-                name=b.get("name", ""),
-                address=b.get("address", ""),
-                phone=b.get("phone", ""),
-                website=b.get("website", ""),
-                category=b.get("category", industry),
-                rating=b.get("rating"),
-                reviews=b.get("reviews"),
-                place_id=b.get("place_id"),
-                lat=b.get("lat"),
-                lng=b.get("lng"),
-                estimated_revenue=b.get("estimated_revenue"),
-                estimated_cash_flow=b.get("estimated_cash_flow"),
-                estimated_value=b.get("estimated_value"),
-                confidence=b.get("confidence"),
-            )
+        biz = Business(
+            name=b.get("name", ""),
+            address=b.get("address", ""),
+            phone=b.get("phone", ""),
+            website=b.get("website", ""),
+            category=b.get("category", industry),
+            rating=b.get("rating"),
+            reviews=b.get("reviews"),
+            place_id=b.get("place_id"),
+            lat=b.get("lat"),
+            lng=b.get("lng"),
+            estimated_revenue=b.get("estimated_revenue"),
+            estimated_cash_flow=b.get("estimated_cash_flow"),
+            estimated_value=b.get("estimated_value"),
+            confidence=b.get("confidence"),
         )
+        # Allow extra mock-only fields for UI iteration (no schema changes required).
+        for key, value in b.items():
+            if key not in base_keys:
+                setattr(biz, key, value)
+        businesses.append(biz)
 
     pulse = payload.get("pulse", {})
+    market_overview = payload.get("market_overview", {})
 
-    return ResearchResult(summary=summary, businesses=businesses, pulse=pulse)
+    return ResearchResult(
+        summary=summary,
+        businesses=businesses,
+        pulse=pulse,
+        market_overview=market_overview,
+    )

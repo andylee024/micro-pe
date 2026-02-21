@@ -16,9 +16,9 @@ from rich.text import Text
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _kv(t: Text, label: str, value: str, note: str = "") -> None:
+def _kv(t: Text, label: str, value: str, note: str = "", value_style: str = "white") -> None:
     t.append(f"    {label:<18}", style="dim white")
-    t.append(f"{value}", style="white")
+    t.append(f"{value}", style=value_style)
     if note:
         t.append(f"  ({note})", style="dim white")
     t.append("\n")
@@ -30,12 +30,40 @@ def _stars(rating: float) -> str:
     return "★" * full + "☆" * empty
 
 
+def _grade_style(grade: str) -> str:
+    """Return Rich style for an outlook grade."""
+    g = (grade or "").strip().upper()
+    if g.startswith("A"):
+        return "bold green"
+    if g.startswith("B"):
+        return "green"
+    if g.startswith("C"):
+        return "yellow"
+    if g and g != "—":
+        return "red"
+    return "dim white"
+
+
+def _trend_style(value: str) -> str:
+    """Return Rich style based on trend direction indicator."""
+    if "↑" in value or "+" in value:
+        return "green"
+    if "↓" in value or "▼" in value:
+        return "red"
+    return "white"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Pane 1 — Market Overview (top-left)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_market_overview_panel(market_data: Dict) -> Panel:
+def create_market_overview_panel(
+    market_data: Dict,
+    focused: bool = False,
+    show_sources: bool = False,
+) -> Panel:
     """Market size, financial benchmarks, quality metrics, trends, outlook."""
+    border = "cyan" if focused else "dim white"
     t = Text()
 
     if not market_data:
@@ -44,7 +72,7 @@ def create_market_overview_panel(market_data: Dict) -> Panel:
         return Panel(
             t,
             title="[dim white]market overview[/dim white]",
-            border_style="white",
+            border_style=border,
             padding=(0, 0),
         )
 
@@ -54,6 +82,33 @@ def create_market_overview_panel(market_data: Dict) -> Panel:
     outlook = market_data.get("outlook", {})
     fdd_count = fin.get("fdd_count", 0)
     grade = outlook.get("grade", "—")
+
+    if show_sources:
+        sources = market_data.get("sources", {})
+        fdd_filings = sources.get("fdd_filings", [])
+        bbs = sources.get("bizbuysell", {})
+        t.append("\n  FDD FILINGS  ", style="bold white")
+        t.append(f"({len(fdd_filings)} filings · NASAA/state portals)\n\n", style="dim white")
+        for f in fdd_filings:
+            t.append(f"    {f['name']:<32}", style="white")
+            t.append(f"{f['year']}  ", style="dim white")
+            t.append(f"{f['avg_unit_revenue']} avg\n", style="white")
+        t.append("\n  BIZBUYSELL  ", style="bold white")
+        t.append(f"({bbs.get('listing_count', 0)} listings · {bbs.get('period', '')})\n\n", style="dim white")
+        _kv(t, "Median ask", bbs.get("median_ask", "—"))
+        _kv(t, "Revenue range", bbs.get("revenue_range", "—"))
+        _kv(t, "Cash flow range", bbs.get("cashflow_range", "—"))
+        _kv(t, "Avg days listed", str(bbs.get("avg_days_listed", "—")))
+        t.append("\n  ")
+        t.append("Esc", style="dim cyan")
+        t.append("  back to summary\n", style="dim white")
+        return Panel(
+            t,
+            title="[dim white]market overview[/dim white]",
+            subtitle="[dim white]sources[/dim white]",
+            border_style=border,
+            padding=(0, 0),
+        )
 
     total = market_data.get("total_businesses", 0)
     density = market_data.get("market_density", "—")
@@ -79,33 +134,40 @@ def create_market_overview_panel(market_data: Dict) -> Panel:
     rating = quality.get("avg_rating", 0.0)
     pos_pct = quality.get("sentiment_positive", 0)
     t.append("  QUALITY\n", style="bold white")
-    _kv(t, "Avg rating", f"{_stars(rating)}  {rating}")
-    _kv(t, "Sentiment", f"{pos_pct}% positive")
-    _kv(t, "Review vol.", quality.get("review_volume", "—"))
+    t.append(f"    {'Avg rating':<18}", style="dim white")
+    t.append(_stars(rating), style="yellow")
+    t.append(f"  {rating}\n", style="white")
+    t.append(f"    {'Sentiment':<18}", style="dim white")
+    sentiment_style = "green" if pos_pct >= 60 else "yellow" if pos_pct >= 40 else "red"
+    t.append(f"{pos_pct}%", style=sentiment_style)
+    t.append(" positive\n", style="dim white")
+    _kv(t, "Review vol.", str(quality.get("review_volume", "—")))
     t.append("\n")
 
     # Trends
     t.append("  TRENDS  ", style="bold white")
     t.append("30 days\n", style="dim white")
-    _kv(t, "Job postings", trends.get("job_postings", "—"))
-    _kv(t, "New entrants", trends.get("new_entrants", "—"))
-    _kv(t, "Search vol.", trends.get("search_volume", "—"))
+    for label, key in [("Job postings", "job_postings"), ("New entrants", "new_entrants"), ("Search vol.", "search_volume")]:
+        val = trends.get(key, "—")
+        _kv(t, label, str(val), value_style=_trend_style(str(val)))
     t.append("\n")
 
     # Outlook
     note = outlook.get("note", "")
     t.append("  OUTLOOK  ", style="bold white")
-    t.append(f"Grade {grade}", style="bold white")
+    t.append(f"Grade ", style="bold white")
+    t.append(grade, style=_grade_style(grade))
     if note:
         t.append(f"  ·  {note}\n", style="dim white")
     else:
         t.append("\n")
 
+    hint = r"  \[s] sources" if focused else ""
     return Panel(
         t,
         title="[dim white]market overview[/dim white]",
-        subtitle=f"[dim white]{grade} market · {fdd_count} fdds[/dim white]",
-        border_style="white",
+        subtitle=f"[dim white]{grade} market · {fdd_count} fdds{hint}[/dim white]",
+        border_style=border,
         padding=(0, 0),
     )
 
@@ -119,8 +181,10 @@ def create_target_list_panel(
     offset: int = 0,
     limit: int = 8,
     selected_index: int = 0,
+    opened_business: Optional[Dict] = None,
+    focused: bool = False,
 ) -> Panel:
-    """Ranked, scrollable business list with cursor highlight."""
+    """Scrollable business list with cursor highlight."""
     t = Text()
 
     if not businesses:
@@ -128,11 +192,11 @@ def create_target_list_panel(
         return Panel(
             t,
             title="[dim white]target list[/dim white]",
-            border_style="white",
+            border_style="cyan" if focused else "dim white",
             padding=(0, 0),
         )
 
-    t.append("  sorted by acquisition score\n\n", style="dim white")
+    t.append("\n")
 
     end_idx = min(offset + limit, len(businesses))
 
@@ -140,39 +204,57 @@ def create_target_list_panel(
         is_selected = abs_idx == selected_index
         rank = abs_idx + 1
         name = biz.get("name", "—")
-        score = biz.get("score")
-        revenue = biz.get("revenue") or biz.get("est_revenue") or ""
         rating = biz.get("rating")
+        reviews = biz.get("reviews") or 0
         phone = biz.get("phone") or ""
-        signals = biz.get("signals") or []
+        website = biz.get("website") or ""
 
-        # Line 1: cursor, rank, name, score, revenue, rating
+        # Line 1: cursor, rank, name
         if is_selected:
             t.append(f"  ▶ {rank:<3}", style="bold white")
-            t.append(f"{name:<24}", style="bold white underline")
+            t.append(f"{name}\n", style="bold white underline")
         else:
             t.append(f"    {rank:<3}", style="dim white")
-            t.append(f"{name:<24}", style="white")
+            t.append(f"{name}\n", style="white")
 
-        if score is not None:
-            t.append(f"  {score:>3}", style="bold white" if is_selected else "white")
-        if revenue:
-            t.append(f"  {revenue:<7}", style="white" if is_selected else "dim white")
+        # Line 2: rating (yellow stars) + reviews
+        t.append("       ")
         if rating is not None:
-            t.append(f"  {rating}★", style="white" if is_selected else "dim white")
+            t.append(_stars(rating), style="yellow")
+            t.append(f"  {rating}", style="white" if is_selected else "dim white")
+            if reviews:
+                t.append("  ", style="")
+        if reviews:
+            t.append(f"{reviews:,} reviews", style="white" if is_selected else "dim white")
+        if rating is None and not reviews:
+            t.append("—", style="dim white")
         t.append("\n")
 
-        # Line 2: phone + first two signals
-        phone_part = phone if phone else "—"
-        signal_part = "  ·  " + "  |  ".join(signals[:2]) if signals else ""
-        t.append(f"      {phone_part}{signal_part}\n", style="dim white")
+        # Expanded detail when opened
+        if opened_business and is_selected:
+            t.append("\n")
+            contact_parts = []
+            if phone:
+                contact_parts.append(phone)
+            if website:
+                contact_parts.append(website)
+            if contact_parts:
+                t.append(f"       {'  ·  '.join(contact_parts)}\n", style="dim white")
+            t.append("       ", style="")
+            t.append("[W]", style="cyan")
+            t.append(" website  ·  ", style="dim white")
+            t.append("[R]", style="cyan")
+            t.append(" reviews\n", style="dim white")
+            t.append("\n")
+        else:
+            t.append("\n")
 
     subtitle = f"{offset + 1}–{end_idx} of {len(businesses)}"
     return Panel(
         t,
         title="[dim white]target list[/dim white]",
         subtitle=f"[dim white]{subtitle}[/dim white]",
-        border_style="white",
+        border_style="cyan" if focused else "dim white",
         padding=(0, 0),
     )
 
@@ -217,6 +299,7 @@ def create_business_profile_panel(
     if website:
         t.append(f"  ·  {website}", style="dim white")
     t.append("\n")
+    t.append("    [W] website  [R] reviews\n", style="dim white")
     t.append(f"    {address}\n\n", style="dim white")
 
     # Financials
@@ -278,8 +361,13 @@ def create_business_profile_panel(
 # Pane 4 — Market Pulse (bottom-right)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def create_market_pulse_panel(pulse_data: Dict) -> Panel:
-    """Reddit sentiment, market trends, operator insights, flags."""
+def create_market_pulse_panel(
+    pulse_data: Dict,
+    focused: bool = False,
+    show_sources: bool = False,
+) -> Panel:
+    """Compact qualitative pulse: business model, operating models, opportunities, risks."""
+    border = "cyan" if focused else "dim white"
     t = Text()
 
     if not pulse_data:
@@ -287,71 +375,205 @@ def create_market_pulse_panel(pulse_data: Dict) -> Panel:
         return Panel(
             t,
             title="[dim white]market pulse[/dim white]",
-            border_style="white",
+            border_style=border,
             padding=(0, 0),
         )
 
-    reddit = pulse_data.get("reddit", {})
-    trends = pulse_data.get("trends", {})
-    insights = pulse_data.get("insights", [])
-    green_flags = pulse_data.get("green_flags", [])
-    red_flags = pulse_data.get("red_flags", [])
+    business_model = pulse_data.get("business_model", {})
+    operating_models = pulse_data.get("operating_models", [])
+    opportunities = pulse_data.get("opportunities", [])
+    risks = pulse_data.get("risks", [])
+    sources = pulse_data.get("sources", {})
 
-    threads = reddit.get("thread_count", 0)
-    overall = reddit.get("overall", "Mixed")
-    emoji = reddit.get("overall_emoji", "😐")
-    pos_pct = reddit.get("positive_pct", 0)
+    if show_sources:
+        reddit_threads = sources.get("reddit_threads", [])
+        report_list = sources.get("report_list", [])
+        t.append("\n  REDDIT  ", style="bold white")
+        t.append(f"({len(reddit_threads)} threads)\n\n", style="dim white")
+        for thread in reddit_threads:
+            t.append(f"    {thread.get('title', '')}\n", style="white")
+            t.append(f"    {thread.get('sub', '')}  ", style="dim white")
+            t.append(f'"{thread.get("excerpt", "")}"\n\n', style="dim white")
+        t.append("  REPORTS  ", style="bold white")
+        t.append(f"({len(report_list)} sources)\n\n", style="dim white")
+        for report in report_list:
+            t.append(f"    • {report}\n", style="dim white")
+        t.append("\n  ")
+        t.append("Esc", style="dim cyan")
+        t.append("  back to summary\n", style="dim white")
+        return Panel(
+            t,
+            title="[dim white]market pulse[/dim white]",
+            subtitle="[dim white]sources[/dim white]",
+            border_style=border,
+            padding=(0, 0),
+        )
 
-    t.append("\n  REDDIT  ", style="bold white")
-    t.append(f"{threads} threads  ·  {overall} {emoji}\n", style="dim white")
+    t.append("\n  BUSINESS MODEL\n", style="bold white")
+    customers = business_model.get("customers", "—")
+    revenue = business_model.get("revenue", "—")
+    t.append(f"    Customers: {customers}\n", style="dim white")
+    t.append(f"    Revenue: {revenue}\n\n", style="dim white")
 
-    bar_len = int(pos_pct / 10)
-    bar = "█" * bar_len + "░" * (10 - bar_len)
-    t.append(f"    {pos_pct}% positive  ", style="white")
-    t.append(f"{bar}\n", style="dim white")
-
-    top_thread = reddit.get("top_thread", {})
-    if top_thread:
-        title_txt = top_thread.get("title", "")[:36]
-        sub = top_thread.get("subreddit", "")
-        ups = top_thread.get("upvotes", 0)
-        cmts = top_thread.get("comments", 0)
-        t.append(f"    \"{title_txt}\"\n", style="dim white")
-        t.append(f"    r/{sub}  ·  {ups}↑  ·  {cmts}💬\n", style="dim white")
+    t.append("  OPERATING MODELS\n", style="bold white")
+    if operating_models:
+        for model in operating_models[:4]:
+            t.append(f"    • {model}\n", style="dim white")
+    else:
+        t.append("    —\n", style="dim white")
     t.append("\n")
 
-    for p in reddit.get("key_points_pos", [])[:2]:
-        t.append(f"  ✓ {p}\n", style="dim white")
-    for p in reddit.get("key_points_neg", [])[:2]:
-        t.append(f"  ⚠ {p}\n", style="dim white")
+    t.append("  OPPORTUNITIES\n", style="bold white")
+    for op in opportunities[:3]:
+        t.append("    ▲ ", style="green")
+        t.append(f"{op}\n", style="dim white")
+    if not opportunities:
+        t.append("    —\n", style="dim white")
     t.append("\n")
 
-    if insights:
-        t.append("  OPERATOR INSIGHTS\n", style="bold white")
-        for insight in insights[:2]:
-            wrapped = insight if len(insight) <= 42 else insight[:42] + "…"
-            t.append(f"    {wrapped}\n", style="dim white")
-        t.append("\n")
+    t.append("  RISKS\n", style="bold white")
+    for risk in risks[:3]:
+        t.append("    ▼ ", style="red")
+        t.append(f"{risk}\n", style="dim white")
+    if not risks:
+        t.append("    —\n", style="dim white")
+    t.append("\n")
 
-    jobs = trends.get("job_postings", "—")
-    entrants = trends.get("new_entrants", "—")
-    t.append("  TRENDS  ", style="bold white")
-    t.append(f"Jobs {jobs}  ·  New entrants {entrants}\n\n", style="dim white")
+    reddit_count = sources.get("reddit", "—")
+    reviews_count = sources.get("reviews", "—")
+    reports_count = sources.get("reports", "—")
+    listings_count = sources.get("listings", "—")
+    t.append("  SOURCES\n", style="bold white")
+    t.append(
+        f"    Reddit[{reddit_count}] · Reviews[{reviews_count}] · Reports[{reports_count}] · Listings[{listings_count}]\n",
+        style="dim white",
+    )
 
-    t.append("  GREEN FLAGS           ", style="bold white")
-    t.append("RED FLAGS\n", style="bold white")
-    count = max(len(green_flags), len(red_flags))
-    for i in range(min(count, 3)):
-        gf = green_flags[i] if i < len(green_flags) else ""
-        rf = red_flags[i] if i < len(red_flags) else ""
-        t.append(f"  ✓ {gf:<20}", style="dim white")
-        t.append(f"✗ {rf}\n", style="dim white")
-
-    subtitle = f"{threads} threads · 30d"
+    hint = r"  \[s] sources" if focused else ""
+    subtitle = f"{sources.get('reddit', '—')} threads"
     return Panel(
         t,
         title="[dim white]market pulse[/dim white]",
-        subtitle=f"[dim white]{subtitle}[/dim white]",
+        subtitle=f"[dim white]{subtitle}{hint}[/dim white]",
+        border_style=border,
+        padding=(0, 0),
+    )
+
+
+def create_overview_pulse_panel(market_data: Dict, pulse_data: Dict) -> Panel:
+    t = Text()
+
+    # Market overview
+    t.append("\n  market overview\n", style="bold white")
+    if not market_data:
+        t.append("    No market data loaded.\n\n", style="dim white")
+    else:
+        total = market_data.get("total_businesses", 0)
+        density = market_data.get("market_density", "—")
+        est_value = market_data.get("est_market_value", "")
+        t.append(f"    {total} businesses  ·  {density}\n", style="dim white")
+        if est_value:
+            t.append(f"    {est_value}\n\n", style="dim white")
+        else:
+            t.append("\n", style="dim white")
+
+        fin = market_data.get("financial", {})
+        quality = market_data.get("quality", {})
+        trends = market_data.get("trends", {})
+        outlook = market_data.get("outlook", {})
+
+        t.append("  FINANCIALS\n", style="bold white")
+        t.append(f"    Median revenue    {fin.get('median_revenue', '—')}\n", style="dim white")
+        margin = fin.get("ebitda_margin", "—")
+        margin_range = fin.get("margin_range", "")
+        margin_line = f"{margin}"
+        if margin_range:
+            margin_line += f"  ({margin_range})"
+        t.append(f"    EBITDA margin     {margin_line}\n", style="dim white")
+        t.append(f"    Typical acq.      {fin.get('typical_acquisition', '—')}\n\n", style="dim white")
+
+        t.append("  QUALITY\n", style="bold white")
+        rating = quality.get("avg_rating", 0.0)
+        t.append(f"    Avg rating   {_stars(rating)}  {rating}\n", style="dim white")
+        t.append(f"    Sentiment    {quality.get('sentiment_positive', '—')}% positive\n", style="dim white")
+        t.append(f"    Review vol   {quality.get('review_volume', '—')} total\n\n", style="dim white")
+
+        t.append("  TRENDS  30d\n", style="bold white")
+        t.append(f"    Job postings  {trends.get('job_postings', '—')}\n", style="dim white")
+        t.append(f"    New entrants  {trends.get('new_entrants', '—')}\n", style="dim white")
+        if trends.get("search_volume"):
+            t.append(f"    Search vol.   {trends.get('search_volume')}\n", style="dim white")
+        t.append("\n", style="dim white")
+
+        grade = (outlook or {}).get("grade", "")
+        if grade:
+            t.append(f"  OUTLOOK  Grade {grade}\n\n", style="bold white")
+
+    # Market pulse
+    t.append("  market pulse\n", style="bold white")
+    if not pulse_data:
+        t.append("    No market pulse data loaded.\n", style="dim white")
+    else:
+        business_model = pulse_data.get("business_model", {})
+        operating_models = pulse_data.get("operating_models", [])
+        opportunities = pulse_data.get("opportunities", [])
+        risks = pulse_data.get("risks", [])
+        sources = pulse_data.get("sources", {})
+
+        t.append("  BUSINESS MODEL\n", style="bold white")
+        t.append(f"    Customers: {business_model.get('customers', '—')}\n", style="dim white")
+        t.append(f"    Revenue: {business_model.get('revenue', '—')}\n\n", style="dim white")
+
+        t.append("  OPERATING MODELS\n", style="bold white")
+        if operating_models:
+            for model in operating_models[:4]:
+                t.append(f"    • {model}\n", style="dim white")
+        else:
+            t.append("    —\n", style="dim white")
+        t.append("\n", style="dim white")
+
+        t.append("  OPPORTUNITIES\n", style="bold white")
+        for op in opportunities[:3]:
+            t.append(f"    ▲ {op}\n", style="dim white")
+        if not opportunities:
+            t.append("    —\n", style="dim white")
+        t.append("\n", style="dim white")
+
+        t.append("  RISKS\n", style="bold white")
+        for risk in risks[:3]:
+            t.append(f"    ▼ {risk}\n", style="dim white")
+        if not risks:
+            t.append("    —\n", style="dim white")
+        t.append("\n", style="dim white")
+
+        t.append("  SOURCES\n", style="bold white")
+        t.append(
+            f"    Reddit[{sources.get('reddit', '—')}] · Reviews[{sources.get('reviews', '—')}] · Reports[{sources.get('reports', '—')}]\n",
+            style="dim white",
+        )
+
+    return Panel(
+        t,
+        title="[dim white]market overview + pulse[/dim white]",
+        border_style="white",
+        padding=(0, 0),
+    )
+
+
+def create_assistant_panel() -> Panel:
+    t = Text()
+    t.append("\n  Q: Companies with 200+ reviews and a website?\n", style="dim white")
+    t.append("  A: 6 match. Top 3: Cool Air HVAC, Precision Comfort,\n", style="dim white")
+    t.append("     Rapid Response.  [Enter] apply filter\n\n", style="dim white")
+    t.append("  Q: Commercial mix perform better?\n", style="dim white")
+    t.append("  A: Yes. 8 threads + 3 reports mention better pricing\n", style="dim white")
+    t.append("     power in commercial.\n\n", style="dim white")
+    t.append("  Q: Businesses within 15mi of Pasadena?\n", style="dim white")
+    t.append("  A: 5 businesses. Use [Enter] to filter.\n\n", style="dim white")
+    t.append("  [/] > _\n", style="dim white")
+    return Panel(
+        t,
+        title="[dim white]scout assistant[/dim white]",
         border_style="white",
         padding=(0, 0),
     )
@@ -367,54 +589,69 @@ def create_header_text(
     count: int = 0,
     cached: bool = False,
     status: str = "ready",
+    grade: str = "",
 ) -> Text:
     t = Text()
     t.append("  SCOUT  ", style="bold white")
-    t.append(industry, style="white")
+    if industry:
+        t.append(f"{industry} businesses", style="white")
     if location:
         t.append(f"  ·  {location}", style="dim white")
     if count:
-        t.append(f"    {count:,} results", style="dim white")
+        t.append(f"    {count:,} targets", style="dim white")
+    if grade:
         t.append("  ·  ", style="dim white")
-        t.append("cached" if cached else "live", style="dim yellow" if cached else "dim green")
+        t.append(grade, style=_grade_style(grade))
+    t.append("  ·  ", style="dim white")
+    t.append("cached" if cached else "live", style="yellow" if cached else "green")
     t.append(f"  ·  {status.lower()}", style="dim white")
     return t
 
 
-def create_footer_text(has_selection: bool = False, show_help: bool = False) -> Text:
+def _fkey(t: Text, key: str, label: str, sep: str = "  ") -> None:
+    """Append a key + description pair to a footer Text."""
+    t.append(key, style="dim cyan")
+    t.append(f" {label}{sep}", style="dim white")
+
+
+def create_footer_text(
+    has_selection: bool = False,
+    show_help: bool = False,
+    focused_pane: str = "target_list",
+    show_sources: bool = False,
+) -> Text:
     t = Text()
     t.append("  ")
     if show_help:
-        t.append("H", style="dim white")
-        t.append(" close help  ", style="dim white")
-        t.append("Q", style="dim white")
-        t.append(" quit", style="dim white")
+        _fkey(t, "H", "close help")
+        _fkey(t, "Q", "quit", sep="")
+    elif show_sources:
+        _fkey(t, "Esc", "back")
+        _fkey(t, "Tab", "pane")
+        _fkey(t, "Q", "quit", sep="")
     elif has_selection:
-        t.append("↑↓/j/k", style="dim white")
-        t.append(" navigate  ", style="dim white")
-        t.append("B", style="dim white")
-        t.append("/", style="dim white")
-        t.append("Esc", style="dim white")
-        t.append(" back  ", style="dim white")
-        t.append("E", style="dim white")
-        t.append(" export  ", style="dim white")
-        t.append("Q", style="dim white")
-        t.append(" quit", style="dim white")
+        _fkey(t, "↑↓/j/k", "navigate")
+        _fkey(t, "Esc/B", "back")
+        _fkey(t, "W", "website")
+        _fkey(t, "R", "reviews")
+        _fkey(t, "E", "export")
+        _fkey(t, "Tab", "pane")
+        _fkey(t, "Q", "quit", sep="")
+    elif focused_pane in ("market_overview", "market_pulse"):
+        _fkey(t, "Tab", "pane")
+        _fkey(t, "s", "sources")
+        _fkey(t, "E", "export")
+        _fkey(t, "H", "help")
+        _fkey(t, "Q", "quit", sep="")
     else:
-        t.append("↑↓/j/k", style="dim white")
-        t.append(" navigate  ", style="dim white")
-        t.append("Enter", style="dim white")
-        t.append(" open  ", style="dim white")
-        t.append("gg/G", style="dim white")
-        t.append(" top/bottom  ", style="dim white")
-        t.append("E", style="dim white")
-        t.append(" export  ", style="dim white")
-        t.append("R", style="dim white")
-        t.append(" refresh  ", style="dim white")
-        t.append("H", style="dim white")
-        t.append(" help  ", style="dim white")
-        t.append("Q", style="dim white")
-        t.append(" quit", style="dim white")
+        _fkey(t, "↑↓/j/k", "navigate")
+        _fkey(t, "Enter", "open")
+        _fkey(t, "Tab", "pane")
+        _fkey(t, "/", "chat")
+        _fkey(t, "E", "export")
+        _fkey(t, "Shift+R", "refresh")
+        _fkey(t, "H", "help")
+        _fkey(t, "Q", "quit", sep="")
     return t
 
 
@@ -423,26 +660,85 @@ def create_footer_text(has_selection: bool = False, show_help: bool = False) -> 
 # ─────────────────────────────────────────────────────────────────────────────
 
 def create_main_layout() -> Layout:
-    """4-pane Bloomberg layout with thin header + footer."""
+    """Context row on top (overview + pulse), work row on bottom (targets + assistant)."""
     layout = Layout()
     layout.split_column(
         Layout(name="header", size=1),
         Layout(name="body"),
         Layout(name="footer", size=1),
     )
-    layout["body"].split_row(
-        Layout(name="left", ratio=2),
-        Layout(name="right", ratio=3),
+    layout["body"].split_column(
+        Layout(name="top", ratio=2),
+        Layout(name="bottom", ratio=3),
     )
-    layout["left"].split_column(
+    layout["top"].split_row(
         Layout(name="market_overview"),
-        Layout(name="business_profile"),
+        Layout(name="market_pulse"),
     )
-    layout["right"].split_column(
-        Layout(name="target_list", ratio=3),
-        Layout(name="market_pulse", ratio=2),
+    layout["bottom"].split_row(
+        Layout(name="target_list"),
+        Layout(name="scout_assistant"),
     )
     return layout
+
+
+def create_scout_assistant_panel(
+    chat_history: List[Dict],
+    chat_input: str = "",
+    chat_mode: bool = False,
+    scope_count: int = 0,
+    active_filter: str = "",
+    focused: bool = False,
+) -> Panel:
+    """Chat interface pane for the scout assistant."""
+    from datetime import date
+    t = Text()
+
+    today = date.today().strftime("%b %-d").lower()
+    t.append(f"\n  ─ ─ ─ ─  {today}  ─ ─ ─ ─\n\n", style="dim white")
+
+    if not chat_history:
+        t.append("  Ask anything about this market.\n\n", style="dim white")
+        t.append("  e.g.  Which businesses have 150+ reviews?\n", style="dim white")
+        t.append("         Summarize the key risks.\n", style="dim white")
+        t.append("         Show businesses near Pasadena.\n", style="dim white")
+    else:
+        for entry in chat_history:
+            q = entry.get("q", "")
+            a = entry.get("a", "")
+            t.append("  you  ", style="dim white")
+            t.append(f"{q}\n", style="white")
+            a_lines = a.split("\n")
+            t.append("   ◆   ", style="cyan")
+            t.append(f"{a_lines[0]}\n", style="dim white")
+            for line in a_lines[1:]:
+                if line:
+                    if line.strip().startswith("["):
+                        t.append(f"       {line}\n", style="cyan")
+                    else:
+                        t.append(f"       {line}\n", style="dim white")
+            t.append("\n")
+
+    # Input line
+    if chat_mode:
+        t.append("\n  > ", style="bold white")
+        t.append(chat_input, style="white")
+        t.append("▌\n", style="green")
+    else:
+        scope_str = f"{scope_count} in scope" if scope_count else "no data"
+        filter_str = f"· {active_filter}" if active_filter else "· no filter"
+        t.append("\n  ", style="")
+        t.append("[/]", style="cyan")
+        t.append(f" > _   {scope_str}  {filter_str}\n", style="dim white")
+
+    border = "white" if chat_mode else "cyan" if focused else "dim white"
+    return Panel(
+        t,
+        title="[dim white]scout assistant[/dim white]",
+        subtitle="[dim white]claude sonnet[/dim white]",
+        border_style=border,
+        padding=(0, 0),
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -566,8 +862,10 @@ def create_help_panel() -> Panel:
         ("PgUp/Dn",  "Scroll by page"),
         ("Ctrl+U/D", "Scroll by half page"),
         ("Home/End", "Jump to top / bottom"),
+        ("W",        "Open website"),
+        ("R",        "Open reviews"),
         ("E",        "Export to CSV"),
-        ("R",        "Refresh data"),
+        ("Shift+R",  "Refresh data"),
         ("H",        "Show / hide help"),
         ("Q",        "Quit"),
     ]

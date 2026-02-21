@@ -27,7 +27,8 @@
       "estimated_revenue": 1500000,
       "estimated_cash_flow": 270000,
       "estimated_value": 918000,
-      "confidence": "medium"
+      "confidence": "medium",
+      "place_id": "mock_place_id_01"
     },
     {
       "name": "Premier Climate",
@@ -40,7 +41,8 @@
       "estimated_revenue": 1200000,
       "estimated_cash_flow": 216000,
       "estimated_value": 734400,
-      "confidence": "medium"
+      "confidence": "medium",
+      "place_id": "mock_place_id_02"
     },
     {
       "name": "SoCal Heating & Air",
@@ -53,7 +55,8 @@
       "estimated_revenue": 980000,
       "estimated_cash_flow": 176000,
       "estimated_value": 598400,
-      "confidence": "low"
+      "confidence": "low",
+      "place_id": "mock_place_id_03"
     },
     {
       "name": "Apex Mechanical",
@@ -66,7 +69,8 @@
       "estimated_revenue": 860000,
       "estimated_cash_flow": 155000,
       "estimated_value": 527000,
-      "confidence": "low"
+      "confidence": "low",
+      "place_id": "mock_place_id_04"
     },
     {
       "name": "Precision Comfort",
@@ -79,7 +83,8 @@
       "estimated_revenue": 1900000,
       "estimated_cash_flow": 350000,
       "estimated_value": 1190000,
-      "confidence": "high"
+      "confidence": "high",
+      "place_id": "mock_place_id_05"
     },
     {
       "name": "Citywide HVAC",
@@ -92,7 +97,8 @@
       "estimated_revenue": 720000,
       "estimated_cash_flow": 130000,
       "estimated_value": 442000,
-      "confidence": "low"
+      "confidence": "low",
+      "place_id": "mock_place_id_06"
     },
     {
       "name": "Golden State Heating",
@@ -105,7 +111,8 @@
       "estimated_revenue": 1100000,
       "estimated_cash_flow": 200000,
       "estimated_value": 680000,
-      "confidence": "medium"
+      "confidence": "medium",
+      "place_id": "mock_place_id_07"
     },
     {
       "name": "EcoTemp Services",
@@ -118,7 +125,8 @@
       "estimated_revenue": 930000,
       "estimated_cash_flow": 170000,
       "estimated_value": 578000,
-      "confidence": "low"
+      "confidence": "low",
+      "place_id": "mock_place_id_08"
     },
     {
       "name": "Blue Sky Mechanical",
@@ -131,7 +139,8 @@
       "estimated_revenue": 1250000,
       "estimated_cash_flow": 225000,
       "estimated_value": 765000,
-      "confidence": "medium"
+      "confidence": "medium",
+      "place_id": "mock_place_id_09"
     },
     {
       "name": "Summit Air",
@@ -144,7 +153,8 @@
       "estimated_revenue": 640000,
       "estimated_cash_flow": 115000,
       "estimated_value": 391000,
-      "confidence": "low"
+      "confidence": "low",
+      "place_id": "mock_place_id_10"
     },
     {
       "name": "Rapid Response HVAC",
@@ -157,7 +167,8 @@
       "estimated_revenue": 1400000,
       "estimated_cash_flow": 255000,
       "estimated_value": 867000,
-      "confidence": "high"
+      "confidence": "high",
+      "place_id": "mock_place_id_11"
     },
     {
       "name": "Westside Cooling",
@@ -170,31 +181,110 @@
       "estimated_revenue": 780000,
       "estimated_cash_flow": 140000,
       "estimated_value": 476000,
-      "confidence": "low"
+      "confidence": "low",
+      "place_id": "mock_place_id_12"
     }
   ],
   "pulse": {
-    "reddit": {
-      "thread_count": 23,
-      "overall": "Mixed",
-      "overall_emoji": "😐",
-      "positive_pct": 52,
-      "top_thread": {
-        "title": "HVAC maintenance contracts are the real margin driver",
-        "subreddit": "sweatystartup",
-        "upvotes": 312,
-        "comments": 88,
-        "permalink": "https://www.reddit.com/r/sweatystartup/"
-      },
-      "key_points_pos": ["Recurring maintenance revenue stabilizes cash flow"],
-      "key_points_neg": ["Technician churn hurts growth"]
+    "business_model": {
+      "customers": "Residential + commercial",
+      "revenue": "Recurring maintenance + one-off projects"
+    },
+    "operating_models": [
+      "Owner-operator (solo/crew)",
+      "Multi-tech local operator",
+      "Commercial-leaning operator",
+      "Franchise / multi-location"
+    ],
+    "opportunities": [
+      "Recurring contracts expand margins",
+      "Fragmented market enables roll-up",
+      "Essential demand supports resilience"
+    ],
+    "risks": [
+      "Tech shortage limits scale",
+      "Price pressure compresses margin",
+      "Best operators rarely sell"
+    ],
+    "sources": {
+      "reddit": 15,
+      "reviews": 420,
+      "reports": 8,
+      "listings": 12,
+      "reddit_threads": [
+        {
+          "title": "Bought an HVAC co, 18 month update — AMA",
+          "sub": "r/sweatystartup",
+          "excerpt": "Recurring contracts = 40% of rev, huge margin difference"
+        },
+        {
+          "title": "Tech shortage is very real in SoCal HVAC",
+          "sub": "r/smallbusiness",
+          "excerpt": "Can't scale past 3 trucks without 6mo hiring lead time"
+        },
+        {
+          "title": "Selling my HVAC business, what's fair?",
+          "sub": "r/Entrepreneur",
+          "excerpt": "Owner pricing 2.5x SDE, no recurring, likely overpriced"
+        },
+        {
+          "title": "HVAC roll-up thesis — anyone tried it?",
+          "sub": "r/sweatystartup",
+          "excerpt": "Fragmentation is real but integration costs are underrated"
+        }
+      ],
+      "report_list": [
+        "IBISWorld HVAC Services in the US 2024",
+        "Sageworks SMB Benchmark Report 2023",
+        "BizBuySell Insight Report Q4 2024",
+        "First Research HVAC Industry Profile"
+      ]
+    }
+  },
+  "market_overview": {
+    "total_businesses": 12,
+    "market_density": "high density",
+    "est_market_value": "$58M total market",
+    "financial": {
+      "fdd_count": 12,
+      "confidence": "medium",
+      "median_revenue": "$1.2M",
+      "revenue_range": "",
+      "ebitda_margin": "18%",
+      "margin_range": "12\u201324%",
+      "typical_acquisition": "$540K \u2013 $2.1M"
+    },
+    "quality": {
+      "avg_rating": 4.1,
+      "sentiment_positive": 72,
+      "review_volume": 8400
     },
     "trends": {
-      "job_postings": "↑ 12%",
-      "new_entrants": "→"
+      "job_postings": "\u2191 45",
+      "new_entrants": "3",
+      "search_volume": "\u219112%"
     },
-    "insights": ["Demand steady in coastal zip codes"],
-    "green_flags": ["Recurring revenue"],
-    "red_flags": ["Owner‑operator reliance"]
+    "outlook": {
+      "grade": "B+",
+      "note": ""
+    },
+    "sources": {
+      "fdd_filings": [
+        {"name": "Aire Serv Franchise", "year": 2023, "avg_unit_revenue": "$1.1M"},
+        {"name": "One Hour Air Conditioning", "year": 2023, "avg_unit_revenue": "$980K"},
+        {"name": "Comfort Systems USA", "year": 2022, "avg_unit_revenue": "$1.3M"},
+        {"name": "Superior Plus Energy", "year": 2022, "avg_unit_revenue": "$890K"},
+        {"name": "AtmosAir HVAC", "year": 2023, "avg_unit_revenue": "$750K"},
+        {"name": "CoolBreeze Franchise", "year": 2021, "avg_unit_revenue": "$1.05M"}
+      ],
+      "bizbuysell": {
+        "listing_count": 34,
+        "period": "last 90 days",
+        "median_ask": "$540K",
+        "revenue_range": "$380K – $2.1M",
+        "cashflow_range": "$80K – $420K",
+        "avg_days_listed": 127
+      }
+    }
   }
 }

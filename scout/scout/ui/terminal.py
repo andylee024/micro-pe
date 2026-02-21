@@ -4,6 +4,7 @@ import threading
 import time
 from typing import Dict, List, Optional
 from pathlib import Path
+import webbrowser
 
 from rich.console import Console
 from rich.live import Live
@@ -14,6 +15,7 @@ from .components import (
     create_target_list_panel,
     create_business_profile_panel,
     create_market_pulse_panel,
+    create_scout_assistant_panel,
     create_header_text,
     create_footer_text,
     create_help_panel,
@@ -67,8 +69,18 @@ class ScoutTerminal:
         self.show_help = False
         self.error_message: Optional[str] = None
 
-        # Page size for target list pane (half-height, 2 lines/biz)
+        # Page size for target list pane
         self.page_size = 8
+
+        # Chat state
+        self.chat_history: List[Dict] = []
+        self.chat_input: str = ""
+        self.chat_mode: bool = False
+
+        # Pane focus state
+        self.focused_pane: str = "target_list"  # market_overview | market_pulse | target_list | scout_assistant
+        self.overview_show_sources: bool = False
+        self.pulse_show_sources: bool = False
 
         self.live: Optional[Live] = None
         self.keyboard_handler = KeyboardHandler(self)
@@ -123,8 +135,8 @@ class ScoutTerminal:
             )
 
             self.businesses = [self._business_to_dict(b) for b in result.businesses]
-            self.businesses.sort(key=lambda b: b.get("score", 0) or 0, reverse=True)
-            self.market_overview = self._market_overview_from_result(result)
+            # Keep source order; no scoring-based ranking for now.
+            self.market_overview = result.market_overview or self._market_overview_from_result(result)
             self.market_pulse = result.pulse or self._market_pulse_placeholder()
             self.cached = self.use_cache
             self.selected_index = 0
@@ -145,12 +157,22 @@ class ScoutTerminal:
     def _seed_from_result(self, result) -> None:
         """Seed the UI with a precomputed ResearchResult (mock or cached)."""
         self.businesses = [self._business_to_dict(b) for b in result.businesses]
-        self.businesses.sort(key=lambda b: b.get("score", 0) or 0, reverse=True)
-        self.market_overview = self._market_overview_from_result(result)
+        # Keep source order; no scoring-based ranking for now.
+        self.market_overview = result.market_overview or self._market_overview_from_result(result)
         self.market_pulse = result.pulse or self._market_pulse_placeholder()
         self.cached = True
         self.selected_index = 0
         self.status = "Ready (mock data)"
+        self.chat_history = [
+            {
+                "q": "Which companies have 150+ reviews?",
+                "a": "3 match: Cool Air HVAC (350), Precision Comfort (420),\nRapid Response (310).  [Enter] apply filter",
+            },
+            {
+                "q": "Summarize the key risks.",
+                "a": "3 risks: tech shortage limits scale, price pressure\ncompresses margins, top operators rarely sell.",
+            },
+        ]
 
     def _build_layout(self) -> Layout:
         """Build the 4-pane layout with current state."""
@@ -164,26 +186,29 @@ class ScoutTerminal:
                 count=len(self.businesses),
                 cached=self.cached,
                 status=self.status,
+                grade=(self.market_overview.get("outlook", {}) or {}).get("grade", ""),
             )
         )
 
-        # Help overlay replaces the profile pane
-        if self.show_help:
-            layout["business_profile"].update(create_help_panel())
-        else:
-            layout["business_profile"].update(
-                create_business_profile_panel(
-                    business=self.opened_business,
-                    market_data=self.market_overview or None,
-                )
-            )
-
-        # Market overview (always shown)
+        # Market overview — top-left context pane
         layout["market_overview"].update(
-            create_market_overview_panel(self.market_overview)
+            create_market_overview_panel(
+                self.market_overview,
+                focused=self.focused_pane == "market_overview",
+                show_sources=self.overview_show_sources,
+            )
         )
 
-        # Target list — loading spinner or business list
+        # Market pulse — top-right context pane
+        layout["market_pulse"].update(
+            create_market_pulse_panel(
+                self.market_pulse,
+                focused=self.focused_pane == "market_pulse",
+                show_sources=self.pulse_show_sources,
+            )
+        )
+
+        # Target list — bottom-left work pane
         if self.businesses:
             layout["target_list"].update(
                 create_target_list_panel(
@@ -191,14 +216,22 @@ class ScoutTerminal:
                     offset=self.scroll_offset,
                     limit=self.page_size,
                     selected_index=self.selected_index,
+                    opened_business=self.opened_business,
+                    focused=self.focused_pane == "target_list",
                 )
             )
         else:
             layout["target_list"].update(create_progress_panel(self.status))
 
-        # Market pulse (always shown)
-        layout["market_pulse"].update(
-            create_market_pulse_panel(self.market_pulse)
+        # Scout assistant — bottom-right work pane
+        layout["scout_assistant"].update(
+            create_scout_assistant_panel(
+                self.chat_history,
+                self.chat_input,
+                self.chat_mode,
+                scope_count=len(self.businesses),
+                focused=self.focused_pane == "scout_assistant",
+            )
         )
 
         # Footer — single line
@@ -206,6 +239,8 @@ class ScoutTerminal:
             create_footer_text(
                 has_selection=self.opened_business is not None,
                 show_help=self.show_help,
+                focused_pane=self.focused_pane,
+                show_sources=self.overview_show_sources or self.pulse_show_sources,
             )
         )
 
@@ -269,8 +304,71 @@ class ScoutTerminal:
             self._update_display()
 
     def close_detail(self) -> None:
-        """Clear the profile pane."""
+        """Close sources view if open, otherwise clear the profile pane."""
+        if self.overview_show_sources:
+            self.overview_show_sources = False
+            self._update_display()
+            return
+        if self.pulse_show_sources:
+            self.pulse_show_sources = False
+            self._update_display()
+            return
         self.opened_business = None
+        self._update_display()
+
+    # ── Pane navigation ───────────────────────────────────────────────────────
+
+    _PANE_ORDER = ["market_overview", "market_pulse", "target_list", "scout_assistant"]
+
+    def focus_next_pane(self) -> None:
+        """Cycle focus to the next pane."""
+        panes = self._PANE_ORDER
+        idx = panes.index(self.focused_pane) if self.focused_pane in panes else 2
+        self.focused_pane = panes[(idx + 1) % len(panes)]
+        # Close any open sources view when leaving that pane
+        if self.focused_pane != "market_overview":
+            self.overview_show_sources = False
+        if self.focused_pane != "market_pulse":
+            self.pulse_show_sources = False
+        self._update_display()
+
+    def toggle_sources(self) -> None:
+        """Toggle the sources drill-down for the focused pane (overview/pulse only)."""
+        if self.focused_pane == "market_overview":
+            self.overview_show_sources = not self.overview_show_sources
+            self._update_display()
+        elif self.focused_pane == "market_pulse":
+            self.pulse_show_sources = not self.pulse_show_sources
+            self._update_display()
+
+    # ── Chat ──────────────────────────────────────────────────────────────────
+
+    def enter_chat_mode(self) -> None:
+        self.chat_mode = True
+        self._update_display()
+
+    def exit_chat_mode(self) -> None:
+        self.chat_mode = False
+        self.chat_input = ""
+        self._update_display()
+
+    def chat_type(self, char: str) -> None:
+        self.chat_input += char
+        self._update_display()
+
+    def chat_backspace(self) -> None:
+        if self.chat_input:
+            self.chat_input = self.chat_input[:-1]
+            self._update_display()
+
+    def chat_submit(self) -> None:
+        q = self.chat_input.strip()
+        if not q:
+            self.exit_chat_mode()
+            return
+        self.chat_history.append({"q": q, "a": "..."})
+        self.chat_input = ""
+        self.chat_mode = False
         self._update_display()
 
     # ── Actions ───────────────────────────────────────────────────────────────
@@ -325,6 +423,54 @@ class ScoutTerminal:
         self.status = f"Error: {error}"
         self._update_display()
 
+    def open_website(self) -> None:
+        business = self._current_business()
+        if not business:
+            self.status = "No business selected"
+            self._update_display()
+            return
+        website = business.get("website") or ""
+        if not website:
+            self.status = "No website available"
+            self._update_display()
+            return
+        if not website.startswith(("http://", "https://")):
+            website = f"https://{website}"
+        try:
+            webbrowser.open(website)
+            self.status = "Opened website in browser"
+            self._update_display()
+        except Exception as e:
+            self.status = f"Failed to open website: {e}"
+            self._update_display()
+
+    def open_reviews(self) -> None:
+        business = self._current_business()
+        if not business:
+            self.status = "No business selected"
+            self._update_display()
+            return
+        place_id = business.get("place_id") or ""
+        if not place_id:
+            self.status = "No reviews link available"
+            self._update_display()
+            return
+        url = f"https://www.google.com/maps/search/?api=1&query_place_id={place_id}"
+        try:
+            webbrowser.open(url)
+            self.status = "Opened reviews in browser"
+            self._update_display()
+        except Exception as e:
+            self.status = f"Failed to open reviews: {e}"
+            self._update_display()
+
+    def _current_business(self) -> Optional[Dict]:
+        if self.opened_business:
+            return self.opened_business
+        if self.businesses and 0 <= self.selected_index < len(self.businesses):
+            return self.businesses[self.selected_index]
+        return None
+
     # ── Helpers ──────────────────────────────────────────────────────────────
 
     def _business_to_dict(self, business) -> Dict:
@@ -336,6 +482,9 @@ class ScoutTerminal:
             signals.append(f"{business.rating}★")
         if business.reviews:
             signals.append(f"{business.reviews} reviews")
+        extra_signals = getattr(business, "signals", None) or []
+        if extra_signals:
+            signals.extend(extra_signals)
         return {
             "name": business.name,
             "address": business.address,
@@ -356,6 +505,11 @@ class ScoutTerminal:
             "confidence": business.confidence,
             "score": score,
             "signals": signals,
+            "location": getattr(business, "location", None),
+            "review_themes_pos": getattr(business, "review_themes_pos", None),
+            "next_steps": getattr(business, "next_steps", None),
+            "revenue_vs_median": getattr(business, "revenue_vs_median", None),
+            "ebitda_vs_median": getattr(business, "ebitda_vs_median", None),
         }
 
     def _market_overview_from_result(self, result) -> Dict:
@@ -396,18 +550,19 @@ class ScoutTerminal:
 
     def _market_pulse_placeholder(self) -> Dict:
         return {
-            "reddit": {
-                "thread_count": 0,
-                "overall": "—",
-                "overall_emoji": "😐",
-                "positive_pct": 0,
-                "key_points_pos": [],
-                "key_points_neg": [],
+            "business_model": {
+                "customers": "—",
+                "revenue": "—",
             },
-            "trends": {"job_postings": "—", "new_entrants": "—"},
-            "insights": [],
-            "green_flags": [],
-            "red_flags": [],
+            "operating_models": [],
+            "opportunities": [],
+            "risks": [],
+            "sources": {
+                "reddit": "—",
+                "reviews": "—",
+                "reports": "—",
+                "listings": "—",
+            },
         }
 
     def _avg_rating(self, businesses) -> float:

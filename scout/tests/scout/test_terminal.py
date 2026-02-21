@@ -377,15 +377,15 @@ def test_create_business_table_selected_row():
 
 
 def test_create_main_layout():
-    """Test 4-pane layout creation"""
+    """Test layout creation"""
     layout = create_main_layout()
 
     assert isinstance(layout, Layout)
     assert layout.get("header") is not None
     assert layout.get("market_overview") is not None
-    assert layout.get("target_list") is not None
-    assert layout.get("business_profile") is not None
     assert layout.get("market_pulse") is not None
+    assert layout.get("target_list") is not None
+    assert layout.get("scout_assistant") is not None
     assert layout.get("footer") is not None
 
 

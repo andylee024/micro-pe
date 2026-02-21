@@ -300,7 +300,7 @@ class TestUIComponents:
         assert layout.get("body") is not None
         assert layout.get("market_overview") is not None
         assert layout.get("target_list") is not None
-        assert layout.get("business_profile") is not None
+        assert layout.get("scout_assistant") is not None
         assert layout.get("market_pulse") is not None
 
     def test_layout_with_data(self, mock_businesses):
@@ -316,7 +316,7 @@ class TestUIComponents:
         assert layout.get("body") is not None
         assert layout.get("market_overview") is not None
         assert layout.get("target_list") is not None
-        assert layout.get("business_profile") is not None
+        assert layout.get("scout_assistant") is not None
         assert layout.get("market_pulse") is not None
 
     def test_layout_with_help(self, mock_businesses):
