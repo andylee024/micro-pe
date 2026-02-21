@@ -3,6 +3,7 @@
 import click
 from pathlib import Path
 import sys
+from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -25,14 +26,14 @@ def cli():
 
 
 @cli.command()
-@click.argument('query', required=True)
+@click.argument('query', required=False, default=None)
 @click.option('--no-cache', is_flag=True, help='Bypass cache and fetch fresh data')
 @click.option('--max-results', default=config.MAX_RESULTS_DEFAULT, help='Maximum number of businesses to fetch')
 @click.option('--no-ui', is_flag=True, help='Disable terminal UI and just print results')
 @click.option('--mock-data', is_flag=True, help='Use bundled mock data for UI iteration')
 @click.option('--mock-data-path', type=click.Path(exists=True, dir_okay=False, path_type=Path), help='Path to mock data JSON')
 def research(
-    query: str,
+    query: Optional[str],
     no_cache: bool,
     max_results: int,
     no_ui: bool,
@@ -53,6 +54,18 @@ def research(
                 click.echo(format_error_message(e), err=True)
                 click.echo("\nPlease add GOOGLE_MAPS_API_KEY to your .env file", err=True)
                 sys.exit(1)
+
+        # If no query provided and not using mock data, show splash screen
+        if query is None:
+            if mock_data or mock_data_path:
+                # Mock data with no query — use a default
+                query = "HVAC businesses in Los Angeles"
+            else:
+                from scout.ui.splash import SplashScreen
+                splash = SplashScreen()
+                query = splash.run()
+                if not query:
+                    sys.exit(0)
 
         # Parse query into industry and location
         try:

@@ -84,6 +84,11 @@ class ScoutTerminal:
         self.pulse_show_sources: bool = False
         self.query_string: str = ""
 
+        # Loading screen state
+        self.screen: str = "ready"  # "loading" | "ready"
+        self.pipeline_stages: dict = {}   # stage → "pending" | "running" | "done" | "error"
+        self.pipeline_counts: dict = {}   # stage → int count
+
         self.live: Optional[Live] = None
         self.keyboard_handler = KeyboardHandler(self)
 
@@ -124,6 +129,11 @@ class ScoutTerminal:
         try:
             from scout.application.research_market import ResearchMarket
 
+            self.screen = "loading"
+            self.pipeline_stages = {s: "pending" for s in ["maps", "bizbuysell", "reddit", "ai_analysis"]}
+            self.pipeline_counts = {}
+            self._update_display()
+
             self.status = "Searching data sources..."
             self._update_display()
 
@@ -134,6 +144,7 @@ class ScoutTerminal:
                 max_results=self.max_results,
                 use_cache=self.use_cache,
                 include_benchmarks=True,
+                on_progress=self._on_pipeline_progress,
             )
 
             self.businesses = [self._business_to_dict(b) for b in result.businesses]
@@ -142,15 +153,18 @@ class ScoutTerminal:
             self.market_pulse = result.pulse or self._market_pulse_placeholder()
             self.cached = self.use_cache
             self.selected_index = 0
+            self.screen = "ready"
             self.status = "Ready"
             self._update_display()
 
         except ConnectionError:
+            self.screen = "ready"
             self.status = "Error: network connection failed"
             self.error_message = "Network connection failed."
             self._update_display()
 
         except Exception as e:
+            self.screen = "ready"
             api_error = handle_api_error(e, "Google Maps")
             self.status = f"Error: {str(e)}"
             self.error_message = format_error_message(api_error)
@@ -177,8 +191,80 @@ class ScoutTerminal:
             },
         ]
 
+    def _build_loading_layout(self) -> Layout:
+        """Single-pane loading screen showing pipeline progress."""
+        from rich.text import Text as RichText
+        from rich.panel import Panel as RichPanel
+
+        layout = Layout()
+        layout.split_column(
+            Layout(name="header", size=1),
+            Layout(name="body"),
+            Layout(name="footer", size=1),
+        )
+
+        layout["header"].update(
+            create_header_text(
+                industry=self.industry,
+                location=self.location,
+                count=0,
+                cached=False,
+                status="researching...",
+            )
+        )
+
+        t = RichText()
+        t.append("\n")
+
+        stage_labels = {
+            "maps": "Google Maps",
+            "bizbuysell": "BizBuySell",
+            "reddit": "Reddit",
+            "ai_analysis": "AI analysis",
+        }
+
+        for stage, label in stage_labels.items():
+            status = self.pipeline_stages.get(stage, "pending")
+            count = self.pipeline_counts.get(stage, 0)
+
+            if status == "done":
+                icon = "✓"
+                icon_style = "green"
+                detail = f"{count:,} found" if count else "done"
+                detail_style = "dim white"
+            elif status == "running":
+                icon = "⠸"
+                icon_style = "yellow"
+                detail = "fetching..."
+                detail_style = "yellow"
+            elif status == "error":
+                icon = "✗"
+                icon_style = "red"
+                detail = "unavailable"
+                detail_style = "dim white"
+            else:  # pending
+                icon = "◻"
+                icon_style = "dim white"
+                detail = "pending"
+                detail_style = "dim white"
+
+            t.append(f"  {icon}  ", style=icon_style)
+            t.append(f"{label:<20}", style="white" if status == "running" else "dim white")
+            t.append(f"{detail}\n\n", style=detail_style)
+
+        layout["body"].update(
+            RichPanel(t, border_style="dim white", padding=(0, 0))
+        )
+
+        layout["footer"].update(create_footer_text())
+
+        return layout
+
     def _build_layout(self) -> Layout:
         """Build the 4-pane layout with current state."""
+        if self.screen == "loading":
+            return self._build_loading_layout()
+
         layout = create_main_layout()
 
         # Header — single line
@@ -616,6 +702,13 @@ class ScoutTerminal:
             self._update_display()
 
     # ── Helpers ──────────────────────────────────────────────────────────────
+
+    def _on_pipeline_progress(self, stage: str, status: str, count: int = 0) -> None:
+        """Receive progress update from ResearchMarket pipeline."""
+        self.pipeline_stages[stage] = status
+        if count:
+            self.pipeline_counts[stage] = count
+        self._update_display()
 
     def _business_to_dict(self, business) -> Dict:
         score = 0
