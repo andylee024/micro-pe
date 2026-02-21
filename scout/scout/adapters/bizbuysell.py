@@ -8,7 +8,13 @@ class BizBuySellAdapter:
     def __init__(self):
         self.tool = BizBuySellTool()
 
-    def search(self, industry: str, max_results: int = 20, use_cache: bool = True) -> List[Dict]:
+    def search(
+        self,
+        industry: str,
+        location: str = "",
+        max_results: int = 20,
+        use_cache: bool = True,
+    ) -> List[Dict]:
         try:
             result = self.tool.search(
                 industry=industry,

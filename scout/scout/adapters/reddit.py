@@ -8,51 +8,66 @@ class RedditSearchAdapter:
     def __init__(self):
         self.base_url = "https://www.reddit.com/search.json"
 
-    def search(self, query: str, limit: int = 25) -> Dict:
-        headers = {
-            "User-Agent": "scout-research-bot/1.0",
-        }
-        params = {
-            "q": query,
-            "limit": limit,
-            "sort": "relevance",
-            "t": "year",
-        }
-        try:
-            resp = requests.get(self.base_url, params=params, headers=headers, timeout=15)
-            if resp.status_code != 200:
-                return {}
-            data = resp.json()
-            posts = self._parse_posts(data)
-            return self._summarize(posts)
-        except Exception:
-            return {}
+    def search(self, industry: str, location: str = "", use_cache: bool = True) -> dict:
+        """
+        Search Reddit for posts about a given industry using multiple queries.
 
-    def _parse_posts(self, payload: Dict) -> List[Dict]:
-        posts = []
-        for child in payload.get("data", {}).get("children", []):
-            data = child.get("data", {})
-            posts.append(
-                {
-                    "title": data.get("title", ""),
-                    "subreddit": data.get("subreddit", ""),
-                    "upvotes": data.get("ups", 0),
-                    "comments": data.get("num_comments", 0),
-                    "permalink": f"https://www.reddit.com{data.get('permalink', '')}",
-                }
-            )
-        return posts
+        Runs up to 3 queries, deduplicates by post id, and returns the top 8
+        posts sorted by score alongside a thread count.
+        """
+        queries = [
+            f"{industry} acquisition",
+            f"buying {industry} business",
+            f"{industry} small business owner",
+        ]
 
-    def _summarize(self, posts: List[Dict]) -> Dict:
-        if not posts:
-            return {}
-        top = sorted(posts, key=lambda p: p.get("upvotes", 0), reverse=True)[:1]
+        headers = {"User-Agent": "Scout/1.0"}
+        params_base = {"sort": "relevance", "t": "year", "limit": 10}
+
+        seen_ids: set = set()
+        all_posts: List[Dict] = []
+
+        for query in queries:
+            try:
+                params = {**params_base, "q": query}
+                resp = requests.get(
+                    self.base_url, params=params, headers=headers, timeout=5
+                )
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                children = data.get("data", {}).get("children", [])
+                for child in children:
+                    post = child.get("data", {})
+                    post_id = post.get("id")
+                    if post_id and post_id not in seen_ids:
+                        seen_ids.add(post_id)
+                        all_posts.append(child)
+            except Exception:
+                continue  # skip this query on any error
+
+        if not all_posts:
+            return {"thread_count": 0, "reddit_threads": []}
+
+        # Sort by score (upvotes) descending
+        all_posts.sort(
+            key=lambda c: c.get("data", {}).get("score", 0), reverse=True
+        )
+
+        top_posts = all_posts[:8]
+        reddit_threads = [
+            {
+                "title": p["data"].get("title", ""),
+                "sub": p["data"].get("subreddit_name_prefixed", ""),
+                "excerpt": (
+                    p["data"].get("selftext", "")[:150].strip()
+                    or p["data"].get("title", "")
+                ),
+            }
+            for p in top_posts
+        ]
+
         return {
-            "thread_count": len(posts),
-            "overall": "Mixed",
-            "overall_emoji": "😐",
-            "positive_pct": 50,
-            "top_thread": top[0] if top else {},
-            "key_points_pos": [],
-            "key_points_neg": [],
+            "thread_count": len(all_posts),
+            "reddit_threads": reddit_threads,
         }
