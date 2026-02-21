@@ -75,7 +75,11 @@ class KeyboardHandler:
         elif key in (readchar.key.ENTER, '\r', '\n'):
             self.terminal.select_business()
         elif key in (getattr(readchar.key, "ESCAPE", None), '\x1b'):
-            self.terminal.close_detail()
+            closed = self.terminal.close_detail()
+            if not closed:
+                # Nothing was open — return focus to target list
+                self.terminal.focused_pane = "target_list"
+                self.terminal._update_display()
         elif key.lower() == 'b':
             self.terminal.close_detail()
         elif key.lower() == 'j':

@@ -1,0 +1,41 @@
+# Repository Guidelines
+
+## Project Structure & Module Organization
+- `scout/` is the project root (Python package + configs). Key areas:
+- `scout/scout/` — application code (CLI, UI, domain, adapters, shared).
+- `scout/data_sources/` — acquisition layer (maps, marketplaces, FDD, sentiment).
+- `scout/tests/` — pytest suite organized by area (`scout/`, `data_sources/`, `integration/`, `shared/`).
+- `scout/config/` — config helpers.
+- `scout/outputs/` — cached results and exports.
+- `scout/docs/` — architecture and feature notes.
+
+## Build, Test, and Development Commands
+Run commands from `scout/` (the project root):
+- `python3 -m venv venv` and `source venv/bin/activate` — create/activate a virtualenv.
+- `pip install -r requirements.txt` — install runtime dependencies.
+- `pip install -e .` — editable install with CLI entrypoint (`scout`).
+- `pip install -e ".[dev]"` — add dev tools (pytest, black, ruff).
+- `scout research "HVAC in Los Angeles"` — run the terminal UI workflow.
+- `pytest -v` — run the full test suite.
+- `SCOUT_LIVE_TESTS=1 pytest tests/data_sources/test_smoke.py -v` — live smoke tests (uses external APIs).
+
+## Coding Style & Naming Conventions
+- Python, 4-space indentation.
+- Formatting: `black` with 100-character lines.
+- Linting: `ruff` with 100-character lines.
+- Naming: `snake_case` for functions/vars, `CamelCase` for classes.
+- Tests follow `test_*.py` and `test_*` function names (see pytest config).
+
+## Testing Guidelines
+- Framework: `pytest` (see `pyproject.toml`).
+- Test locations: `tests/` with subpackages mirroring app areas.
+- Keep unit tests deterministic; mark or gate live tests behind `SCOUT_LIVE_TESTS=1`.
+
+## Commit & Pull Request Guidelines
+- Commit messages follow a Conventional Commits style: `type: short summary` (e.g., `refactor: reorganize data_sources`).
+- PRs should include a clear summary, testing notes (commands run), and link related issues.
+- Include screenshots or terminal captures for UI changes.
+
+## Security & Configuration Tips
+- Secrets live in `.env` (template: `.env.example`). Do not commit API keys.
+- External API calls can incur costs; prefer cached runs unless validating integrations.

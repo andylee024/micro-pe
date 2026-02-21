@@ -369,10 +369,14 @@ For V1, improve this:
 ## Questions for Prioritization Review
 
 1. **Splash screen vs. live data first?** The splash is high-visibility but the live data is the core value. Which lands harder in a demo?
+We'll need both for V1
 2. **Reddit sentiment — real-time vs. pre-generated?** Real-time adds complexity; pre-generated for top 20 industries gets 80% of the value.
+The reddit sentiment should be an internet search when the user types int he query to identify the most relevant reddit threads just as if they were doing a google search themselves. 
 3. **Assistant filter capability** — this is the "wow moment" feature. How complex does it need to be for V1? (Natural language → filter vs. preset filter templates?)
-4. **Which industries to support at launch?** Benchmarks and FDD data quality varies widely. HVAC, plumbing, auto repair, landscaping, and food service are the highest-signal industries for SMB acquisition.
+Doesn't need to be that complex, what we need is for the assistant to be able to talk to a live database and query it and answer qeustions for the user. 
+4. **Which industries to support at launch?** Benchmarks and FDD data quality varies widely. HVAC, plumbing, auto repair, landscaping, and food service are the highest-signal industries for SMB acquisition. That's fine it should be a best effort based on the query
 5. **Session persistence** — is the ability to re-open a previous search important enough for V1, or is fresh-query-every-time acceptable?
+fresy query each time is fine.
 
 ---
 

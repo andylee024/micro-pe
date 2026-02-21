@@ -39,6 +39,7 @@ def load_mock_result(path: str | Path | None = None) -> ResearchResult:
         industry=industry,
         location=location,
         total_businesses=summary_payload.get("total_businesses", 0),
+        query=summary_payload.get("query", f"{industry} businesses in {location}"),
         benchmarks=benchmarks,
     )
 

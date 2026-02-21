@@ -81,6 +81,7 @@ class ScoutTerminal:
         self.focused_pane: str = "target_list"  # market_overview | market_pulse | target_list | scout_assistant
         self.overview_show_sources: bool = False
         self.pulse_show_sources: bool = False
+        self.query_string: str = ""
 
         self.live: Optional[Live] = None
         self.keyboard_handler = KeyboardHandler(self)
@@ -163,6 +164,7 @@ class ScoutTerminal:
         self.cached = True
         self.selected_index = 0
         self.status = "Ready (mock data)"
+        self.query_string = result.summary.query
         self.chat_history = [
             {
                 "q": "Which companies have 150+ reviews?",
@@ -303,18 +305,21 @@ class ScoutTerminal:
             self.opened_business = self.businesses[self.selected_index]
             self._update_display()
 
-    def close_detail(self) -> None:
-        """Close sources view if open, otherwise clear the profile pane."""
+    def close_detail(self) -> bool:
+        """Close sources view or profile pane. Returns True if something was closed."""
         if self.overview_show_sources:
             self.overview_show_sources = False
             self._update_display()
-            return
+            return True
         if self.pulse_show_sources:
             self.pulse_show_sources = False
             self._update_display()
-            return
-        self.opened_business = None
-        self._update_display()
+            return True
+        if self.opened_business is not None:
+            self.opened_business = None
+            self._update_display()
+            return True
+        return False
 
     # ── Pane navigation ───────────────────────────────────────────────────────
 
@@ -383,7 +388,7 @@ class ScoutTerminal:
             self._update_display()
             csv_path = export_to_csv(self.businesses, self.industry, self.location)
             format_export_message(csv_path, len(self.businesses))
-            self.status = f"Exported {len(self.businesses)} businesses to {csv_path.name}"
+            self.status = f"Exported → {csv_path}"
             self._update_display()
             time.sleep(2)
             self.status = "Ready"

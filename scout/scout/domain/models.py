@@ -38,6 +38,7 @@ class MarketSummary:
     industry: str
     location: str
     total_businesses: int
+    query: str = ""
     benchmarks: List[Benchmark] = field(default_factory=list)
 
 
