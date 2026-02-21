@@ -211,14 +211,20 @@ class ScoutTerminal:
         )
 
         # Target list — bottom-left work pane
-        if self.businesses:
+        if self.opened_business:
+            layout["target_list"].update(
+                create_business_profile_panel(
+                    business=self.opened_business,
+                    market_data=self.market_overview,
+                )
+            )
+        elif self.businesses:
             layout["target_list"].update(
                 create_target_list_panel(
                     self.businesses,
                     offset=self.scroll_offset,
                     limit=self.page_size,
                     selected_index=self.selected_index,
-                    opened_business=self.opened_business,
                     focused=self.focused_pane == "target_list",
                 )
             )

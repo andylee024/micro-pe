@@ -183,7 +183,6 @@ def create_target_list_panel(
     offset: int = 0,
     limit: int = 8,
     selected_index: int = 0,
-    opened_business: Optional[Dict] = None,
     focused: bool = False,
 ) -> Panel:
     """Scrollable business list with cursor highlight."""
@@ -208,8 +207,6 @@ def create_target_list_panel(
         name = biz.get("name", "—")
         rating = biz.get("rating")
         reviews = biz.get("reviews") or 0
-        phone = biz.get("phone") or ""
-        website = biz.get("website") or ""
 
         # Line 1: cursor, rank, name
         if is_selected:
@@ -219,7 +216,7 @@ def create_target_list_panel(
             t.append(f"    {rank:<3}", style="dim white")
             t.append(f"{name}\n", style="white")
 
-        # Line 2: rating (yellow stars) + reviews
+        # Line 2: rating (yellow stars) + reviews [+ confidence if selected]
         t.append("       ")
         if rating is not None:
             t.append(_stars(rating), style="yellow")
@@ -230,26 +227,15 @@ def create_target_list_panel(
             t.append(f"{reviews:,} reviews", style="white" if is_selected else "dim white")
         if rating is None and not reviews:
             t.append("—", style="dim white")
+        # Confidence badge on selected row
+        if is_selected:
+            conf = biz.get("confidence", "")
+            if conf:
+                conf_style = "green" if conf == "high" else "yellow" if conf == "medium" else "dim white"
+                t.append(f"  · {conf}", style=conf_style)
         t.append("\n")
 
-        # Expanded detail when opened
-        if opened_business and is_selected:
-            t.append("\n")
-            contact_parts = []
-            if phone:
-                contact_parts.append(phone)
-            if website:
-                contact_parts.append(website)
-            if contact_parts:
-                t.append(f"       {'  ·  '.join(contact_parts)}\n", style="dim white")
-            t.append("       ", style="")
-            t.append("[W]", style="cyan")
-            t.append(" website  ·  ", style="dim white")
-            t.append("[R]", style="cyan")
-            t.append(" reviews\n", style="dim white")
-            t.append("\n")
-        else:
-            t.append("\n")
+        t.append("\n")
 
     subtitle = f"{offset + 1}–{end_idx} of {len(businesses)}"
     return Panel(
@@ -312,7 +298,10 @@ def create_business_profile_panel(
     valuation = business.get("valuation") or ""
 
     if rev or ebitda or valuation:
-        t.append("  FINANCIALS\n", style="bold white")
+        confidence = business.get("confidence", "")
+        conf_label = f"  (estimated · {confidence} confidence)" if confidence else "  (estimated)"
+        t.append("  FINANCIALS", style="bold white")
+        t.append(conf_label + "\n", style="dim white")
         if rev:
             t.append(f"    Revenue    {rev:<14}", style="white")
             if rev_vs:
@@ -325,6 +314,10 @@ def create_business_profile_panel(
             t.append("\n")
         if valuation:
             t.append(f"    Value      {valuation}\n", style="white")
+        t.append("\n")
+    else:
+        t.append("  FINANCIALS\n", style="bold white")
+        t.append("    Financial estimates: not available\n", style="dim white")
         t.append("\n")
 
     # Reviews
