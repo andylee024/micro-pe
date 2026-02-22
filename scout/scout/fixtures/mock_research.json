@@ -244,7 +244,7 @@
   "market_overview": {
     "total_businesses": 12,
     "market_density": "high density",
-    "est_market_value": "$58M total market",
+    "est_market_value": "$58M",
     "financial": {
       "fdd_count": 12,
       "confidence": "medium",

@@ -6,7 +6,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from scout.domain.models import Business, Benchmark, MarketSummary, ResearchResult
+from scout.domain.models import (
+    Business,
+    Benchmark,
+    MarketSummary,
+    ResearchResult,
+    MarketOverview,
+    MarketPulse,
+)
 
 
 DEFAULT_MOCK_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "mock_research.json"
@@ -84,8 +91,8 @@ def load_mock_result(path: str | Path | None = None) -> ResearchResult:
                 setattr(biz, key, value)
         businesses.append(biz)
 
-    pulse = payload.get("pulse", {})
-    market_overview = payload.get("market_overview", {})
+    pulse = MarketPulse.from_dict(payload.get("pulse", {}))
+    market_overview = MarketOverview.from_dict(payload.get("market_overview", {}))
 
     return ResearchResult(
         summary=summary,

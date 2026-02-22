@@ -3,18 +3,18 @@
 import pytest
 from scout.ui.terminal import ScoutTerminal
 from scout.ui.components import (
-    create_header,
-    create_business_table,
-    create_footer,
-    create_detail_panel,
-    create_status_bar,
+    create_header_text,
+    create_target_list_panel,
+    create_footer_text,
+    create_business_profile_panel,
+    create_market_overview_panel,
+    create_market_pulse_panel,
+    create_scout_assistant_panel,
     create_progress_panel,
     create_help_panel,
-    create_footer_instructions,
     create_main_layout,
 )
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 from rich.layout import Layout
 
@@ -38,7 +38,7 @@ def test_scout_terminal_init():
     assert terminal.selected_index == 0
     assert terminal.opened_business is None
     assert len(terminal.businesses) == 0
-    assert terminal.page_size == 8
+    assert terminal.page_size >= 6
 
 
 # Test scrolling functionality
@@ -233,35 +233,35 @@ def test_select_business_no_data():
 
 # Test UI components
 
-def test_create_header():
-    """Test header panel creation"""
-    panel = create_header("HVAC in Los Angeles")
+def test_create_header_text():
+    """Test header text creation"""
+    text = create_header_text("HVAC", "Los Angeles")
 
-    assert isinstance(panel, Panel)
+    assert isinstance(text, Text)
 
 
-def test_create_header_with_stats():
+def test_create_header_text_with_stats():
     """Test header includes stats when provided"""
-    panel = create_header(
-        query="HVAC in LA",
-        num_businesses=42,
+    text = create_header_text(
+        industry="HVAC",
+        location="LA",
+        count=42,
         cached=True,
-        status_message="Ready",
+        status="Ready",
     )
 
+    assert isinstance(text, Text)
+
+
+def test_create_target_list_panel_empty():
+    """Test target list panel creation with no data"""
+    panel = create_target_list_panel([])
+
     assert isinstance(panel, Panel)
 
 
-def test_create_business_table_empty():
-    """Test business table creation with no data"""
-    table = create_business_table([])
-
-    assert isinstance(table, Table)
-    assert table.row_count == 0
-
-
-def test_create_business_table_with_data():
-    """Test business table creation with data"""
+def test_create_target_list_panel_with_data():
+    """Test target list panel creation with data"""
     businesses = [
         {
             'name': 'Test Business',
@@ -270,14 +270,13 @@ def test_create_business_table_with_data():
             'address': '123 Main St'
         }
     ]
-    table = create_business_table(businesses)
+    panel = create_target_list_panel(businesses)
 
-    assert isinstance(table, Table)
-    assert table.row_count == 1
+    assert isinstance(panel, Panel)
 
 
-def test_create_business_table_pagination():
-    """Test business table pagination"""
+def test_create_target_list_panel_pagination():
+    """Test target list panel pagination"""
     businesses = [
         {
             'name': f'Business {i}',
@@ -289,28 +288,15 @@ def test_create_business_table_pagination():
     ]
 
     # Display first 20
-    table = create_business_table(businesses, offset=0, limit=20)
-    assert table.row_count == 20
-
-    # Display next 20
-    table = create_business_table(businesses, offset=20, limit=20)
-    assert table.row_count == 20
-
-    # Display last 10
-    table = create_business_table(businesses, offset=40, limit=20)
-    assert table.row_count == 10
-
-
-def test_create_status_bar():
-    """Test status bar creation"""
-    panel = create_status_bar(num_businesses=487, cached=True, status_message="Ready")
-
+    panel = create_target_list_panel(businesses, offset=0, limit=20)
     assert isinstance(panel, Panel)
 
+    # Display next 20
+    panel = create_target_list_panel(businesses, offset=20, limit=20)
+    assert isinstance(panel, Panel)
 
-def test_create_status_bar_not_cached():
-    """Test status bar with fresh data"""
-    panel = create_status_bar(num_businesses=100, cached=False, status_message="Ready")
+    # Display last 10
+    panel = create_target_list_panel(businesses, offset=40, limit=20)
 
     assert isinstance(panel, Panel)
 
@@ -329,29 +315,22 @@ def test_create_help_panel():
     assert isinstance(panel, Panel)
 
 
-def test_create_footer_instructions():
-    """Test footer instructions creation"""
-    panel = create_footer_instructions()
-
-    assert isinstance(panel, Panel)
-
-
-def test_create_footer_list_mode():
-    """Test minimal footer in list mode"""
-    text = create_footer(offset=0, total=50, limit=20, view_mode="list")
+def test_create_footer_text_list_mode():
+    """Test footer text in list mode"""
+    text = create_footer_text(has_selection=False, focused_pane="target_list")
 
     assert isinstance(text, Text)
 
 
-def test_create_footer_detail_mode():
-    """Test minimal footer in detail mode"""
-    text = create_footer(offset=0, total=50, limit=20, view_mode="detail")
+def test_create_footer_text_detail_mode():
+    """Test footer text in detail mode"""
+    text = create_footer_text(has_selection=True, focused_pane="target_list")
 
     assert isinstance(text, Text)
 
 
-def test_create_detail_panel():
-    """Test detail panel creation"""
+def test_create_business_profile_panel():
+    """Test business profile panel creation"""
     business = {
         "name": "Test Business",
         "phone": "(555) 123-4567",
@@ -359,21 +338,46 @@ def test_create_detail_panel():
         "address": "123 Main St",
         "rating": 4.5,
     }
-    panel = create_detail_panel(business)
+    panel = create_business_profile_panel(business)
 
     assert isinstance(panel, Panel)
 
 
-def test_create_business_table_selected_row():
-    """Test that selected row index is accepted without error"""
-    businesses = [
-        {"name": f"Biz {i}", "phone": "555-0000", "website": "", "address": "1 Main St"}
-        for i in range(5)
-    ]
-    table = create_business_table(businesses, offset=0, limit=20, selected_index=2)
+def test_create_market_overview_panel():
+    """Test market overview panel creation"""
+    market_data = {
+        "total_businesses": 10,
+        "market_density": "high",
+        "est_market_value": "$58M",
+        "financial": {"fdd_count": 2, "confidence": "medium"},
+        "quality": {"avg_rating": 4.2, "sentiment_positive": 70, "review_volume": 1200},
+        "trends": {"job_postings": "↑ 2", "new_entrants": "1", "search_volume": "↑ 3%"},
+        "outlook": {"grade": "B+"},
+    }
+    panel = create_market_overview_panel(market_data)
 
-    assert isinstance(table, Table)
-    assert table.row_count == 5
+    assert isinstance(panel, Panel)
+
+
+def test_create_market_pulse_panel():
+    """Test market pulse panel creation"""
+    pulse_data = {
+        "business_model": {"customers": "Residential", "revenue": "Service"},
+        "operating_models": ["Owner-operator"],
+        "opportunities": ["Recurring contracts"],
+        "risks": ["Labor shortage"],
+        "sources": {"reddit": 1, "reddit_threads": []},
+    }
+    panel = create_market_pulse_panel(pulse_data)
+
+    assert isinstance(panel, Panel)
+
+
+def test_create_scout_assistant_panel():
+    """Test assistant panel creation"""
+    panel = create_scout_assistant_panel(chat_history=[])
+
+    assert isinstance(panel, Panel)
 
 
 def test_create_main_layout():

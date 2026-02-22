@@ -26,6 +26,14 @@ class NASAAFredScraper(FDDScraperBase):
     SOURCE_ID = "nasaa_fred"
     STATES = ["NY", "IL", "MD", "VA", "WA", "ND", "RI"]
 
+    def _get_cache_key(self, industry: str, max_results: int, **kwargs) -> str:
+        """Override cache key to use nasaa_fred prefix (tests rely on this)."""
+        key = f"nasaa_fred_{industry.replace(' ', '_')}_{max_results}"
+        for k, v in sorted(kwargs.items()):
+            if v is not None:
+                key += f"_{k}_{v}"
+        return key
+
     def search(
         self,
         industry: str,
@@ -78,7 +86,7 @@ class NASAAFredScraper(FDDScraperBase):
             self.logger.info(f"After state filter: {len(response['results'])} of {original_count}")
 
         # Add state metadata
-        response['states_searched'] = self.STATES
+        response['states_searched'] = states_filter or self.STATES
         if states_filter:
             response['states_filtered'] = states_filter
 

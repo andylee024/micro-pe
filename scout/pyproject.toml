@@ -25,6 +25,7 @@ dependencies = [
     "textblob>=0.17.0",
     "nltk>=3.8.0",
     "anthropic>=0.40.0",
+    "undetected-chromedriver>=3.5.5",
 ]
 
 [project.optional-dependencies]
@@ -53,7 +54,6 @@ packages = [
     "data_sources.marketplaces",
     "data_sources.sentiment",
     "data_sources.registry",
-    "tools",
 ]
 
 [tool.pytest.ini_options]

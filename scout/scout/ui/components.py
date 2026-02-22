@@ -2,13 +2,9 @@
 
 from typing import Dict, List, Optional
 
-import rich.box
 from rich.align import Align
-from rich.console import Group
 from rich.layout import Layout
 from rich.panel import Panel
-from rich.rule import Rule
-from rich.table import Table
 from rich.text import Text
 
 
@@ -65,6 +61,9 @@ def create_market_overview_panel(
     """Market size, financial benchmarks, quality metrics, trends, outlook."""
     border = "cyan" if focused else "dim white"
     t = Text()
+
+    if hasattr(market_data, "to_dict"):
+        market_data = market_data.to_dict()
 
     if not market_data:
         t.append("\n  No market data loaded.\n", style="dim white")
@@ -270,7 +269,6 @@ def create_business_profile_panel(
 
     t = Text()
     name = business.get("name", "—")
-    score = business.get("score")
     location = business.get("location") or ""
 
     t.append(f"\n  {name}\n", style="bold white")
@@ -366,6 +364,9 @@ def create_market_pulse_panel(
     border = "cyan" if focused else "dim white"
     t = Text()
 
+    if hasattr(pulse_data, "to_dict"):
+        pulse_data = pulse_data.to_dict()
+
     if not pulse_data:
         t.append("\n  No market pulse data loaded.\n", style="dim white")
         return Panel(
@@ -391,8 +392,16 @@ def create_market_pulse_panel(
         t.append(count_str, style="dim white")
         for thread in reddit_threads:
             t.append(f"    {thread.get('title', '')}\n", style="white")
-            t.append(f"    {thread.get('sub', '')}  ", style="dim white")
-            t.append(f'"{thread.get("excerpt", "")}"\n\n', style="dim white")
+            meta = thread.get("sub", "")
+            score = thread.get("score")
+            if score is not None:
+                meta = f"{meta}  ·  {score}↑"
+            t.append(f"    {meta}  ", style="dim white")
+            t.append(f'"{thread.get("excerpt", "")}"\n', style="dim white")
+            url = thread.get("url", "")
+            if url:
+                t.append(f"    {url}\n", style="dim white")
+            t.append("\n")
         t.append("  REPORTS  ", style="bold white")
         t.append(f"({len(report_list)} sources)\n\n", style="dim white")
         for report in report_list:
@@ -499,6 +508,7 @@ def create_footer_text(
     show_help: bool = False,
     focused_pane: str = "target_list",
     show_sources: bool = False,
+    active_filter: bool = False,
 ) -> Text:
     t = Text()
     t.append("  ")
@@ -520,6 +530,8 @@ def create_footer_text(
     elif focused_pane == "scout_assistant":
         _fkey(t, "Tab", "pane")
         _fkey(t, "/", "chat")
+        if active_filter:
+            _fkey(t, "Esc", "clear filter")
         _fkey(t, "E", "export")
         _fkey(t, "Q", "quit", sep="")
     elif focused_pane in ("market_overview", "market_pulse"):
@@ -630,103 +642,6 @@ def create_scout_assistant_panel(
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Legacy helpers — kept for test compatibility
-# ─────────────────────────────────────────────────────────────────────────────
-
-def create_header(
-    query: str,
-    industry: str = "",
-    location: str = "",
-    num_businesses: int = 0,
-    cached: bool = False,
-    status_message: str = "Ready",
-) -> Panel:
-    display_query = f"{industry} in {location}" if industry and location else query
-    line1 = Text()
-    line1.append("SCOUT", style="bold white")
-    if display_query:
-        line1.append(f"  {display_query}", style="dim white")
-    sep = Rule(style="dim white")
-    line3 = Text()
-    if num_businesses:
-        line3.append(f"{num_businesses} results", style="white")
-    else:
-        line3.append("searching...", style="dim white")
-    line3.append("  ·  ", style="dim white")
-    line3.append("cached" if cached else "live data", style="dim yellow" if cached else "dim green")
-    line3.append(f"  ·  {status_message.lower()}", style="dim white")
-    return Panel(Group(line1, sep, line3), border_style="white", padding=(0, 1))
-
-
-def create_business_table(
-    businesses: List[Dict],
-    offset: int = 0,
-    limit: int = 20,
-    selected_index: int = 0,
-) -> Table:
-    table = Table(
-        box=rich.box.SIMPLE_HEAD,
-        show_header=True,
-        header_style="dim white",
-        show_edge=False,
-        expand=True,
-        padding=(0, 1),
-    )
-    table.add_column("#", style="dim white", width=5, no_wrap=True)
-    table.add_column("NAME", style="white", no_wrap=False, min_width=20)
-    table.add_column("PHONE", style="white", width=16, no_wrap=True)
-    table.add_column("RATING", style="white", width=8, no_wrap=True)
-    table.add_column("ADDRESS", style="dim white", no_wrap=False)
-    end_idx = min(offset + limit, len(businesses))
-    for abs_idx, biz in enumerate(businesses[offset:end_idx], start=offset):
-        is_selected = abs_idx == selected_index
-        rating_val = biz.get("rating")
-        rating_str = f"★ {rating_val}" if rating_val else "—"
-        table.add_row(
-            str(abs_idx + 1),
-            biz.get("name", "—"),
-            biz.get("phone", "—"),
-            rating_str,
-            biz.get("address", "—"),
-            style="bold underline" if is_selected else None,
-        )
-    if businesses:
-        start = offset + 1
-        end_shown = min(offset + limit, len(businesses))
-        table.caption = f"[dim white]{start}–{end_shown} of {len(businesses)}[/dim white]"
-    return table
-
-
-def create_footer(
-    offset: int = 0,
-    total: int = 0,
-    limit: int = 20,
-    view_mode: str = "list",
-) -> Text:
-    return create_footer_text(has_selection=(view_mode == "detail"))
-
-
-def create_detail_panel(business: Dict) -> Panel:
-    return create_business_profile_panel(business)
-
-
-def create_status_bar(
-    num_businesses: int,
-    cached: bool = False,
-    status_message: str = "Ready",
-) -> Panel:
-    status_text = Text()
-    status_text.append("Status: ", style="dim white")
-    status_text.append(status_message, style="green")
-    status_text.append(f" • {num_businesses} businesses found • ", style="dim white")
-    status_text.append(
-        "Cached for 90 days" if cached else "Fresh data",
-        style="yellow" if cached else "green",
-    )
-    return Panel(status_text, style="dim white on black", border_style="dim white")
-
-
 def create_progress_panel(message: str, spinner: bool = True) -> Panel:
     progress_text = Text()
     if spinner:
@@ -747,6 +662,7 @@ def create_help_panel() -> Panel:
         ("j / k",    "Navigate (vim)"),
         ("gg / G",   "Jump to top / bottom"),
         ("Enter",    "Open business profile"),
+        ("/",        "Ask assistant"),
         ("Esc / B",  "Back / deselect"),
         ("PgUp/Dn",  "Scroll by page"),
         ("Ctrl+U/D", "Scroll by half page"),
@@ -768,16 +684,3 @@ def create_help_panel() -> Panel:
         border_style="white",
         padding=(1, 2),
     )
-
-
-def create_footer_instructions() -> Panel:
-    instructions = Text()
-    instructions.append("[↑↓]", style="bold white")
-    instructions.append(" Navigate  ", style="dim white")
-    instructions.append("[E]", style="bold white")
-    instructions.append("xport CSV  ", style="dim white")
-    instructions.append("[Q]", style="bold white")
-    instructions.append("uit  ", style="dim white")
-    instructions.append("[H]", style="bold white")
-    instructions.append("elp", style="dim white")
-    return Panel(Align.center(instructions), style="dim white on black", border_style="dim white")

@@ -306,6 +306,8 @@ class TestValidationQueries:
 
     def test_validation_query_suite(self, scraper):
         """Run all validation queries and report success rate"""
+        if not os.getenv("SCOUT_LIVE_TESTS"):
+            pytest.skip("Live validation requires SCOUT_LIVE_TESTS=1")
         validation_queries = [
             ("car wash", 10),
             ("mcdonald's", 1),

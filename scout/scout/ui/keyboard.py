@@ -73,8 +73,14 @@ class KeyboardHandler:
             self.terminal.page_up()
         # Handle regular keys (case insensitive)
         elif key in (readchar.key.ENTER, '\r', '\n'):
-            self.terminal.select_business()
+            if self.terminal.focused_pane == "scout_assistant":
+                self.terminal.enter_chat_mode()
+            else:
+                self.terminal.select_business()
         elif key in (getattr(readchar.key, "ESCAPE", None), '\x1b'):
+            if self.terminal.focused_pane == "scout_assistant" and self.terminal.active_filter:
+                self.terminal.clear_filter()
+                return
             closed = self.terminal.close_detail()
             if not closed:
                 # Nothing was open — return focus to target list

@@ -55,12 +55,20 @@ class CaliforniaFDDScraper(FDDScraperBase):
             kwargs["cache_dir"] = Path("cache/california_fdd")
         super().__init__(**kwargs)
 
-    def _get_cache_key(self, industry: str, max_results: int, download_pdfs: bool, extract_item19: bool) -> str:
+    def _get_cache_key(
+        self,
+        industry: str,
+        max_results: int,
+        download_pdfs: bool = False,
+        extract_item19: bool = False,
+        **kwargs,
+    ) -> str:
         return super()._get_cache_key(
             industry,
             max_results,
             download_pdfs=download_pdfs,
             extract_item19=extract_item19,
+            **kwargs,
         )
 
     def _scrape_fdds(self, industry: str, max_results: int, **kwargs) -> List[Dict]:
@@ -115,7 +123,7 @@ class CaliforniaFDDScraper(FDDScraperBase):
             results = self._parse_results_table(soup, max_results)
 
             # Filter FDD documents only
-            results = self._filter_fdd_documents(results)
+            results = self._filter_document_type(results)
 
             self.logger.info(f"Parsed {len(results)} FDD documents (after filtering)")
 
@@ -254,7 +262,7 @@ class CaliforniaFDDScraper(FDDScraperBase):
                 filing_date = cells[2].get_text(strip=True) if len(cells) > 2 else ""
 
                 # Extract year from filing date
-                fdd_year = self._extract_year(filing_date)
+                fdd_year = self._extract_year_from_text(filing_date) or 0
 
                 # Find PDF link
                 pdf_url = self._extract_pdf_url(row, cells)
@@ -281,7 +289,7 @@ class CaliforniaFDDScraper(FDDScraperBase):
 
         return results
 
-    def _filter_fdd_documents(self, results: List[Dict]) -> List[Dict]:
+    def _filter_document_type(self, results: List[Dict]) -> List[Dict]:
         """
         Filter results to only include FDD documents.
 
@@ -310,6 +318,10 @@ class CaliforniaFDDScraper(FDDScraperBase):
 
         return filtered
 
+    def _handle_pagination(self, driver) -> bool:
+        """Placeholder for pagination handling (returns False when no extra pages)."""
+        return False
+
     def _extract_pdf_url(self, row, cells) -> str:
         """Extract PDF URL from row"""
         # Try to find link in any cell
@@ -323,17 +335,17 @@ class CaliforniaFDDScraper(FDDScraperBase):
 
         return None
 
-    def _extract_year(self, text: str) -> int:
+    def _extract_year_from_text(self, text: str) -> int | None:
         """Extract year from text (e.g., '2024-03-15' or '03/15/2024')"""
         if not text:
-            return 0
+            return None
 
         import re
         match = re.search(r'\b(20\d{2})\b', text)
         if match:
             return int(match.group(1))
 
-        return 0
+        return None
 
     def _save_debug_artifacts(self, driver, suffix: str):
         """Save screenshot and HTML for debugging"""

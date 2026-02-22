@@ -20,6 +20,8 @@ class RedditSearchAdapter:
             f"buying {industry} business",
             f"{industry} small business owner",
         ]
+        if location:
+            queries.extend([f"{q} {location}" for q in queries])
 
         headers = {"User-Agent": "Scout/1.0"}
         params_base = {"sort": "relevance", "t": "year", "limit": 10}
@@ -55,17 +57,19 @@ class RedditSearchAdapter:
         )
 
         top_posts = all_posts[:8]
-        reddit_threads = [
-            {
-                "title": p["data"].get("title", ""),
-                "sub": p["data"].get("subreddit_name_prefixed", ""),
-                "excerpt": (
-                    p["data"].get("selftext", "")[:150].strip()
-                    or p["data"].get("title", "")
-                ),
-            }
-            for p in top_posts
-        ]
+        reddit_threads = []
+        for p in top_posts:
+            post = p.get("data", {})
+            reddit_threads.append(
+                {
+                    "title": post.get("title", ""),
+                    "sub": post.get("subreddit_name_prefixed", ""),
+                    "excerpt": (post.get("selftext", "")[:150].strip() or post.get("title", "")),
+                    "url": post.get("url", ""),
+                    "score": post.get("score", 0),
+                    "created_utc": post.get("created_utc", 0),
+                }
+            )
 
         return {
             "thread_count": len(all_posts),

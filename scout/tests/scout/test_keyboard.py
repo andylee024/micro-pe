@@ -81,8 +81,8 @@ class TestKeyDispatch:
             mock_key.PAGE_UP = '\x1b[5~'
             handler._dispatch_key(mock_key.PAGE_UP)
 
-        assert terminal.selected_index == 22
-        assert terminal.scroll_offset == 22
+        assert terminal.selected_index == max(0, 30 - terminal.page_size)
+        assert terminal.scroll_offset == max(0, 30 - terminal.page_size)
 
     def test_dispatch_page_down(self, handler, terminal):
         """Test page down key dispatch"""

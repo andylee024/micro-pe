@@ -90,6 +90,7 @@ def research(
                 use_cache=not no_cache,
                 max_results=max_results,
                 initial_result=initial_result,
+                query_string=query,
             )
             terminal.run()
 
@@ -117,6 +118,7 @@ def research(
                     results = use_case.run(
                         industry=industry,
                         location=location,
+                        query=query,
                         max_results=max_results,
                         use_cache=not no_cache,
                         include_benchmarks=True,

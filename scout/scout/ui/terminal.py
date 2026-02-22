@@ -1,5 +1,7 @@
 """Rich terminal UI controller for Scout — 4-pane Bloomberg layout"""
 
+import json
+import re
 import threading
 import time
 from typing import Dict, List, Optional
@@ -21,16 +23,10 @@ from .components import (
     create_help_panel,
     create_progress_panel,
     create_main_layout,
-    # legacy compat
-    create_header,
-    create_business_table,
-    create_footer,
-    create_detail_panel,
-    create_status_bar,
-    create_footer_instructions,
 )
 from .keyboard import KeyboardHandler
 from scout.shared.export import export_to_csv, format_export_message
+from scout.domain.models import MarketOverview, MarketPulse
 from scout.shared.errors import (
     handle_api_error,
     handle_file_error,
@@ -48,6 +44,7 @@ class ScoutTerminal:
         use_cache: bool = True,
         max_results: int = 500,
         initial_result=None,
+        query_string: Optional[str] = None,
     ):
         self.industry = industry
         self.location = location
@@ -56,8 +53,10 @@ class ScoutTerminal:
 
         # Data
         self.businesses: List[Dict] = []
-        self.market_overview: Dict = {}
-        self.market_pulse: Dict = {}
+        self.market_overview: MarketOverview = MarketOverview()
+        self.market_pulse: MarketPulse = MarketPulse()
+        self.filtered_businesses: Optional[List[Dict]] = None
+        self.active_filter: str = ""
 
         # UI state
         self.console = Console()
@@ -70,7 +69,7 @@ class ScoutTerminal:
         self.error_message: Optional[str] = None
 
         # Page size for target list pane
-        self.page_size = 8
+        self.page_size = self._compute_page_size()
 
         # Chat state
         self.chat_history: List[Dict] = []
@@ -82,7 +81,7 @@ class ScoutTerminal:
         self.focused_pane: str = "target_list"  # market_overview | market_pulse | target_list | scout_assistant
         self.overview_show_sources: bool = False
         self.pulse_show_sources: bool = False
-        self.query_string: str = ""
+        self.query_string: str = query_string or f"{industry} businesses in {location}"
 
         # Loading screen state
         self.screen: str = "ready"  # "loading" | "ready"
@@ -94,6 +93,15 @@ class ScoutTerminal:
 
         if initial_result is not None:
             self._seed_from_result(initial_result)
+
+    def _compute_page_size(self) -> int:
+        """Estimate how many rows fit in the target list pane."""
+        height = self.console.size.height or 24
+        # Reserve header/footer and divide space between top/bottom rows (2/3 ratio).
+        usable = max(10, height - 2)
+        bottom_height = int(usable * 3 / 5)
+        # Each business takes ~3 lines including spacing.
+        return max(6, (bottom_height - 2) // 3)
 
     def run(self) -> None:
         """Launch terminal UI."""
@@ -141,6 +149,7 @@ class ScoutTerminal:
             result = use_case.run(
                 industry=self.industry,
                 location=self.location,
+                query=self.query_string,
                 max_results=self.max_results,
                 use_cache=self.use_cache,
                 include_benchmarks=True,
@@ -149,7 +158,11 @@ class ScoutTerminal:
 
             self.businesses = [self._business_to_dict(b) for b in result.businesses]
             # Keep source order; no scoring-based ranking for now.
-            self.market_overview = result.market_overview or self._market_overview_from_result(result)
+            self.market_overview = (
+                result.market_overview
+                if result.market_overview and result.market_overview.total_businesses
+                else self._market_overview_from_result(result)
+            )
             self.market_pulse = result.pulse or self._market_pulse_placeholder()
             self.cached = self.use_cache
             self.selected_index = 0
@@ -174,7 +187,11 @@ class ScoutTerminal:
         """Seed the UI with a precomputed ResearchResult (mock or cached)."""
         self.businesses = [self._business_to_dict(b) for b in result.businesses]
         # Keep source order; no scoring-based ranking for now.
-        self.market_overview = result.market_overview or self._market_overview_from_result(result)
+        self.market_overview = (
+            result.market_overview
+            if result.market_overview and result.market_overview.total_businesses
+            else self._market_overview_from_result(result)
+        )
         self.market_pulse = result.pulse or self._market_pulse_placeholder()
         self.cached = True
         self.selected_index = 0
@@ -268,14 +285,16 @@ class ScoutTerminal:
         layout = create_main_layout()
 
         # Header — single line
+        visible_businesses = self._visible_businesses()
+
         layout["header"].update(
             create_header_text(
                 industry=self.industry,
                 location=self.location,
-                count=len(self.businesses),
+                count=len(visible_businesses),
                 cached=self.cached,
                 status=self.status,
-                grade=(self.market_overview.get("outlook", {}) or {}).get("grade", ""),
+                grade=self.market_overview.outlook.grade,
             )
         )
 
@@ -305,10 +324,10 @@ class ScoutTerminal:
                     market_data=self.market_overview,
                 )
             )
-        elif self.businesses:
+        elif visible_businesses:
             layout["target_list"].update(
                 create_target_list_panel(
-                    self.businesses,
+                    visible_businesses,
                     offset=self.scroll_offset,
                     limit=self.page_size,
                     selected_index=self.selected_index,
@@ -324,7 +343,8 @@ class ScoutTerminal:
                 self.chat_history,
                 self.chat_input,
                 self.chat_mode,
-                scope_count=len(self.businesses),
+                scope_count=len(visible_businesses),
+                active_filter=self.active_filter,
                 focused=self.focused_pane == "scout_assistant",
                 chat_scroll_offset=self.chat_scroll_offset,
             )
@@ -337,6 +357,7 @@ class ScoutTerminal:
                 show_help=self.show_help,
                 focused_pane=self.focused_pane,
                 show_sources=self.overview_show_sources or self.pulse_show_sources,
+                active_filter=bool(self.active_filter),
             )
         )
 
@@ -346,10 +367,25 @@ class ScoutTerminal:
         if self.live:
             self.live.update(self._build_layout())
 
+    def _visible_businesses(self) -> List[Dict]:
+        """Return the active business list (filtered if a filter is applied)."""
+        return self.filtered_businesses if self.filtered_businesses is not None else self.businesses
+
+    def clear_filter(self) -> None:
+        """Clear any active assistant filter."""
+        if self.filtered_businesses is not None:
+            self.filtered_businesses = None
+            self.active_filter = ""
+            self.scroll_offset = 0
+            self.selected_index = 0
+            self.opened_business = None
+            self._update_display()
+
     # ── Navigation ────────────────────────────────────────────────────────────
 
     def scroll_up(self) -> None:
-        if not self.businesses:
+        visible = self._visible_businesses()
+        if not visible:
             return
         if self.selected_index > 0:
             self.selected_index -= 1
@@ -358,45 +394,57 @@ class ScoutTerminal:
             self._update_display()
 
     def scroll_down(self) -> None:
-        if not self.businesses:
+        visible = self._visible_businesses()
+        if not visible:
             return
-        if self.selected_index < len(self.businesses) - 1:
+        if self.selected_index < len(visible) - 1:
             self.selected_index += 1
             if self.selected_index >= self.scroll_offset + self.page_size:
                 self.scroll_offset = self.selected_index - self.page_size + 1
             self._update_display()
 
     def page_up(self) -> None:
+        if not self._visible_businesses():
+            return
         self.scroll_offset = max(0, self.scroll_offset - self.page_size)
         self.selected_index = max(0, self.selected_index - self.page_size)
         self._update_display()
 
     def page_down(self) -> None:
-        max_offset = max(0, len(self.businesses) - self.page_size)
+        visible = self._visible_businesses()
+        if not visible:
+            return
+        max_offset = max(0, len(visible) - self.page_size)
         self.scroll_offset = min(max_offset, self.scroll_offset + self.page_size)
         self.selected_index = min(
-            max(0, len(self.businesses) - 1),
+            max(0, len(visible) - 1),
             self.selected_index + self.page_size,
         )
         self._update_display()
 
     def scroll_to_top(self) -> None:
+        if not self._visible_businesses():
+            return
         self.scroll_offset = 0
         self.selected_index = 0
         self._update_display()
 
     def scroll_to_bottom(self) -> None:
-        max_offset = max(0, len(self.businesses) - self.page_size)
+        visible = self._visible_businesses()
+        if not visible:
+            return
+        max_offset = max(0, len(visible) - self.page_size)
         self.scroll_offset = max_offset
-        self.selected_index = max(0, len(self.businesses) - 1)
+        self.selected_index = max(0, len(visible) - 1)
         self._update_display()
 
     # ── Profile pane ──────────────────────────────────────────────────────────
 
     def select_business(self) -> None:
         """Open the profile pane for the currently highlighted business."""
-        if self.businesses and 0 <= self.selected_index < len(self.businesses):
-            self.opened_business = self.businesses[self.selected_index]
+        visible = self._visible_businesses()
+        if visible and 0 <= self.selected_index < len(visible):
+            self.opened_business = visible[self.selected_index]
             self._update_display()
 
     def close_detail(self) -> bool:
@@ -489,15 +537,16 @@ class ScoutTerminal:
     # ── Actions ───────────────────────────────────────────────────────────────
 
     def export_csv(self) -> None:
-        if not self.businesses:
+        visible = self._visible_businesses()
+        if not visible:
             self.status = "No data to export"
             self._update_display()
             return
         try:
             self.status = "Exporting to CSV..."
             self._update_display()
-            csv_path = export_to_csv(self.businesses, self.industry, self.location)
-            format_export_message(csv_path, len(self.businesses))
+            csv_path = export_to_csv(visible, self.industry, self.location)
+            format_export_message(csv_path, len(visible))
             self.status = f"Exported → {csv_path}"
             self._update_display()
             time.sleep(2)
@@ -519,6 +568,8 @@ class ScoutTerminal:
     def refresh_data(self) -> None:
         self.use_cache = False
         self.businesses = []
+        self.filtered_businesses = None
+        self.active_filter = ""
         self.scroll_offset = 0
         self.selected_index = 0
         self.opened_business = None
@@ -582,8 +633,9 @@ class ScoutTerminal:
     def _current_business(self) -> Optional[Dict]:
         if self.opened_business:
             return self.opened_business
-        if self.businesses and 0 <= self.selected_index < len(self.businesses):
-            return self.businesses[self.selected_index]
+        visible = self._visible_businesses()
+        if visible and 0 <= self.selected_index < len(visible):
+            return visible[self.selected_index]
         return None
 
     # ── Chat helpers ──────────────────────────────────────────────────────────
@@ -600,26 +652,31 @@ class ScoutTerminal:
         ]
 
         # Market financials
-        fin = (self.market_overview or {}).get("financial", {})
-        outlook = (self.market_overview or {}).get("outlook", {})
-        quality = (self.market_overview or {}).get("quality", {})
-        if fin.get("median_revenue"):
+        overview = self.market_overview or MarketOverview()
+        fin = overview.financial
+        outlook = overview.outlook
+        quality = overview.quality
+        if fin.median_revenue:
             lines.append("MARKET BENCHMARKS:")
-            lines.append(f"  Median revenue: {fin.get('median_revenue', '—')}")
-            if fin.get("ebitda_margin"):
-                lines.append(f"  EBITDA margin: {fin.get('ebitda_margin', '—')} (range: {fin.get('margin_range', '—')})")
-            if fin.get("typical_acquisition"):
-                lines.append(f"  Typical acquisition price: {fin.get('typical_acquisition', '—')}")
-            if outlook.get("grade"):
-                lines.append(f"  Market grade: {outlook.get('grade', '—')}")
-            if quality.get("avg_rating"):
-                lines.append(f"  Avg business rating: {quality.get('avg_rating', '—')}")
+            lines.append(f"  Median revenue: {fin.median_revenue}")
+            if fin.ebitda_margin:
+                lines.append(f"  EBITDA margin: {fin.ebitda_margin} (range: {fin.margin_range or '—'})")
+            if fin.typical_acquisition:
+                lines.append(f"  Typical acquisition price: {fin.typical_acquisition}")
+            if outlook.grade:
+                lines.append(f"  Market grade: {outlook.grade}")
+            if quality.avg_rating:
+                lines.append(f"  Avg business rating: {quality.avg_rating}")
             lines.append("")
 
         # Business list
-        if self.businesses:
+        visible = self._visible_businesses()
+        if self.active_filter:
+            lines.append(f"ACTIVE FILTER: {self.active_filter}")
+            lines.append("")
+        if visible:
             lines.append("BUSINESSES IN THIS MARKET:")
-            sorted_biz = sorted(self.businesses, key=lambda b: b.get("reviews") or 0, reverse=True)
+            sorted_biz = sorted(visible, key=lambda b: b.get("reviews") or 0, reverse=True)
             for i, b in enumerate(sorted_biz[:25], 1):
                 name = b.get("name", "—")
                 rating = b.get("rating", "")
@@ -645,9 +702,9 @@ class ScoutTerminal:
             lines.append("")
 
         # Pulse (opportunities and risks)
-        pulse = self.market_pulse or {}
-        opps = pulse.get("opportunities", [])
-        risks = pulse.get("risks", [])
+        pulse = self.market_pulse or MarketPulse()
+        opps = pulse.opportunities
+        risks = pulse.risks
         if opps:
             lines.append("MARKET OPPORTUNITIES: " + "; ".join(opps))
         if risks:
@@ -661,8 +718,94 @@ class ScoutTerminal:
             "- If asked to find or filter businesses, list matching names with their key stats.",
             "- If asked about market outlook, cite the grade and benchmark figures.",
             "- Do not repeat back the question. Get straight to the answer.",
+            "",
+            "If a structured action is needed, append a line exactly like:",
+            'ACTION:{"type":"filter","field":"reviews","op":"gte","value":150,"label":"reviews ≥ 150"}',
+            "Valid fields: reviews, rating, name, address, category.",
+            "Valid ops: gte, lte, eq, contains.",
         ])
         return "\n".join(lines)
+
+    def _extract_assistant_action(self, text: str) -> tuple[str, Optional[Dict]]:
+        """Extract ACTION JSON from assistant response."""
+        match = re.search(r"\n?ACTION:(\{.*\})\s*$", text.strip(), re.DOTALL)
+        if not match:
+            return text, None
+        raw = match.group(1)
+        try:
+            action = json.loads(raw)
+        except json.JSONDecodeError:
+            return text, None
+        cleaned = text[: match.start()].rstrip()
+        return cleaned, action
+
+    def _filter_businesses(self, action: Dict) -> Optional[List[Dict]]:
+        field = (action.get("field") or "").lower()
+        op = (action.get("op") or "").lower()
+        value = action.get("value")
+
+        if field not in {"reviews", "rating", "name", "address", "category"}:
+            return None
+        if op not in {"gte", "lte", "eq", "contains"}:
+            return None
+
+        def _get_val(biz: Dict):
+            if field in {"reviews", "rating"}:
+                return biz.get(field) or 0
+            return str(biz.get(field) or "")
+
+        def _match(biz: Dict) -> bool:
+            v = _get_val(biz)
+            if op == "contains":
+                return str(value or "").lower() in str(v).lower()
+            try:
+                v_num = float(v)
+                target = float(value)
+            except (TypeError, ValueError):
+                return False
+            if op == "gte":
+                return v_num >= target
+            if op == "lte":
+                return v_num <= target
+            return v_num == target
+
+        return [b for b in self.businesses if _match(b)]
+
+    def _summarize_filter(self, filtered: List[Dict]) -> str:
+        if not filtered:
+            return "No businesses match that filter."
+        top = filtered[:5]
+        parts = []
+        for b in top:
+            name = b.get("name", "—")
+            rating = b.get("rating")
+            reviews = b.get("reviews")
+            stats = []
+            if rating:
+                stats.append(f"{rating}★")
+            if reviews:
+                stats.append(f"{reviews} reviews")
+            stat_str = f" ({', '.join(stats)})" if stats else ""
+            parts.append(f"{name}{stat_str}")
+        suffix = "" if len(filtered) <= 5 else f" (+{len(filtered) - 5} more)"
+        return f"{len(filtered)} match: " + ", ".join(parts) + suffix
+
+    def _apply_assistant_action(self, action: Dict) -> Optional[str]:
+        action_type = (action.get("type") or "").lower()
+        if action_type == "filter":
+            filtered = self._filter_businesses(action)
+            if filtered is None:
+                return "Could not apply that filter."
+            self.filtered_businesses = filtered
+            self.active_filter = action.get("label") or f"{action.get('field')} {action.get('op')} {action.get('value')}"
+            self.scroll_offset = 0
+            self.selected_index = 0
+            self.opened_business = None
+            return self._summarize_filter(filtered)
+        if action_type == "clear_filter":
+            self.clear_filter()
+            return "Filter cleared."
+        return None
 
     def _run_assistant(self, query: str) -> None:
         """Call Claude API with streaming, update last chat entry in real time."""
@@ -689,7 +832,15 @@ class ScoutTerminal:
                     buffer += text
                     self.chat_history[-1]["a"] = buffer + "▌"
                     self._update_display()
-            self.chat_history[-1]["a"] = buffer
+            cleaned, action = self._extract_assistant_action(buffer)
+            action_note = self._apply_assistant_action(action) if action else None
+            if action_note:
+                if cleaned:
+                    self.chat_history[-1]["a"] = f"{cleaned}\n{action_note}"
+                else:
+                    self.chat_history[-1]["a"] = action_note
+            else:
+                self.chat_history[-1]["a"] = cleaned or buffer
             self._update_display()
         except ImportError:
             self.chat_history[-1]["a"] = (
@@ -711,9 +862,6 @@ class ScoutTerminal:
         self._update_display()
 
     def _business_to_dict(self, business) -> Dict:
-        score = 0
-        if business.rating is not None:
-            score = int(round(business.rating * 20))
         signals = []
         if business.rating is not None:
             signals.append(f"{business.rating}★")
@@ -740,7 +888,6 @@ class ScoutTerminal:
             "ebitda": _format_money(business.estimated_cash_flow) if business.estimated_cash_flow else "",
             "valuation": _format_money(business.estimated_value) if business.estimated_value else "",
             "confidence": business.confidence,
-            "score": score,
             "signals": signals,
             "location": getattr(business, "location", None),
             "review_themes_pos": getattr(business, "review_themes_pos", None),
@@ -749,7 +896,7 @@ class ScoutTerminal:
             "ebitda_vs_median": getattr(business, "ebitda_vs_median", None),
         }
 
-    def _market_overview_from_result(self, result) -> Dict:
+    def _market_overview_from_result(self, result) -> MarketOverview:
         overview = {
             "total_businesses": len(result.businesses),
             "market_density": "—",
@@ -783,24 +930,26 @@ class ScoutTerminal:
                 "typical_acquisition": "—",
             }
 
-        return overview
+        return MarketOverview.from_dict(overview)
 
-    def _market_pulse_placeholder(self) -> Dict:
-        return {
-            "business_model": {
-                "customers": "—",
-                "revenue": "—",
-            },
-            "operating_models": [],
-            "opportunities": [],
-            "risks": [],
-            "sources": {
-                "reddit": "—",
-                "reviews": "—",
-                "reports": "—",
-                "listings": "—",
-            },
-        }
+    def _market_pulse_placeholder(self) -> MarketPulse:
+        return MarketPulse.from_dict(
+            {
+                "business_model": {
+                    "customers": "—",
+                    "revenue": "—",
+                },
+                "operating_models": [],
+                "opportunities": [],
+                "risks": [],
+                "sources": {
+                    "reddit": 0,
+                    "reviews": 0,
+                    "reports": 0,
+                    "listings": 0,
+                },
+            }
+        )
 
     def _avg_rating(self, businesses) -> float:
         ratings = [b.rating for b in businesses if b.rating is not None]

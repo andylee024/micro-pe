@@ -3,7 +3,14 @@
 import statistics
 from typing import List
 
-from scout.domain.models import ResearchResult, MarketSummary, Business, Benchmark
+from scout.domain.models import (
+    ResearchResult,
+    MarketSummary,
+    Business,
+    Benchmark,
+    MarketOverview,
+    MarketPulse,
+)
 from scout.adapters.maps import GoogleMapsAdapter
 from scout.adapters.bizbuysell import BizBuySellAdapter
 from scout.adapters.reddit import RedditSearchAdapter
@@ -20,6 +27,7 @@ class ResearchMarket:
         self,
         industry: str,
         location: str,
+        query: str | None = None,
         max_results: int = 500,
         use_cache: bool = True,
         include_benchmarks: bool = True,
@@ -47,6 +55,7 @@ class ResearchMarket:
         benchmarks: List[Benchmark] = []
         if include_benchmarks:
             _progress("bizbuysell", "running")
+            bizbuysell_error = False
             try:
                 bbs_data = self.bizbuysell.search(industry, location, use_cache=use_cache)
                 if isinstance(bbs_data, list):
@@ -54,13 +63,16 @@ class ResearchMarket:
                 elif isinstance(bbs_data, dict):
                     bbs_listings = bbs_data.get("results", bbs_data.get("listings", []))
             except Exception:
-                pass  # BizBuySell unavailable — proceed without it
+                bizbuysell_error = True  # BizBuySell unavailable — proceed without it
 
-            benchmark = compute_benchmarks_from_listings(industry, bbs_listings)
-            if benchmark:
-                benchmarks.append(benchmark)
-                self._apply_benchmark_estimates(businesses, benchmark)
-            _progress("bizbuysell", "done", len(bbs_listings))
+            if bizbuysell_error:
+                _progress("bizbuysell", "error")
+            else:
+                benchmark = compute_benchmarks_from_listings(industry, bbs_listings)
+                if benchmark:
+                    benchmarks.append(benchmark)
+                    self._apply_benchmark_estimates(businesses, benchmark)
+                _progress("bizbuysell", "done", len(bbs_listings))
         else:
             _progress("bizbuysell", "done")
 
@@ -75,20 +87,31 @@ class ResearchMarket:
             industry=industry,
             location=location,
             total_businesses=len(businesses),
+            query=query or f"{industry} businesses in {location}",
             benchmarks=benchmarks,
         )
 
         # --- Reddit + AI synthesis ---
-        pulse: dict = {}
+        pulse: MarketPulse = MarketPulse()
         if include_reddit:
             _progress("reddit", "running")
-            reddit_data = self.reddit.search(industry, location, use_cache=use_cache)
-            _progress("reddit", "done", reddit_data.get("thread_count", 0))
+            reddit_error = False
+            reddit_data = {"thread_count": 0, "reddit_threads": []}
+            try:
+                reddit_data = self.reddit.search(industry, location, use_cache=use_cache)
+            except Exception:
+                reddit_error = True
 
-            # AI analysis stage
-            _progress("ai_analysis", "running")
-            pulse = self._synthesize_pulse_from_reddit(reddit_data, industry)
-            _progress("ai_analysis", "done")
+            if reddit_error:
+                _progress("reddit", "error")
+                _progress("ai_analysis", "error")
+                pulse = MarketPulse()
+            else:
+                _progress("reddit", "done", reddit_data.get("thread_count", 0))
+                # AI analysis stage
+                _progress("ai_analysis", "running")
+                pulse = self._synthesize_pulse_from_reddit(reddit_data, industry)
+                _progress("ai_analysis", "done")
         else:
             _progress("reddit", "done")
             _progress("ai_analysis", "done")
@@ -124,7 +147,7 @@ class ResearchMarket:
 
     def _synthesize_pulse_from_reddit(
         self, reddit_data: dict, industry: str
-    ) -> dict:
+    ) -> MarketPulse:
         """Use Claude to extract structured insights from Reddit threads."""
         from scout import config
 
@@ -152,7 +175,7 @@ class ResearchMarket:
         }
 
         if not threads or not config.ANTHROPIC_API_KEY:
-            return base_pulse
+            return MarketPulse.from_dict(base_pulse)
 
         try:
             import anthropic
@@ -213,11 +236,11 @@ Keep each item to 1 sentence. Be specific to {industry}."""
         except Exception:
             pass  # Fall back to base_pulse on any error
 
-        return base_pulse
+        return MarketPulse.from_dict(base_pulse)
 
     def _compute_market_overview(
         self, businesses: List[Business], bbs_listings: list, industry: str
-    ) -> dict:
+    ) -> MarketOverview:
         """Build market_overview dict from BizBuySell listings and business data."""
 
         # Compute quality from businesses
@@ -327,7 +350,7 @@ Keep each item to 1 sentence. Be specific to {industry}."""
             else "low density"
         )
 
-        return {
+        market_overview = {
             "total_businesses": len(businesses),
             "market_density": density,
             "est_market_value": "",
@@ -351,3 +374,4 @@ Keep each item to 1 sentence. Be specific to {industry}."""
                 "bizbuysell": bbs_source,
             },
         }
+        return MarketOverview.from_dict(market_overview)

@@ -33,6 +33,7 @@ class SplashScreen:
         self.console = Console()
         self.input_text: str = ""
         self.running: bool = True
+        self.submitted: bool = False
 
     def run(self) -> Optional[str]:
         """
@@ -57,14 +58,16 @@ class SplashScreen:
                 except KeyboardInterrupt:
                     return None
 
-        return self.input_text.strip() if self.running else None
+        return self.input_text.strip() if self.submitted else None
 
     def _handle_key(self, key: str) -> None:
         if key in (readchar.key.ENTER, "\r", "\n"):
             if self.input_text.strip():
+                self.submitted = True
                 self.running = False
         elif key in (getattr(readchar.key, "ESCAPE", None), "\x1b"):
             self.input_text = ""
+            self.submitted = False
             self.running = False
         elif key in (
             getattr(readchar.key, "BACKSPACE", None),
