@@ -85,8 +85,9 @@ class ScoutTerminal:
 
         # Loading screen state
         self.screen: str = "ready"  # "loading" | "ready"
-        self.pipeline_stages: dict = {}   # stage → "pending" | "running" | "done" | "error"
+        self.pipeline_stages: dict = {}   # stage → pending | running | success | degraded | failed
         self.pipeline_counts: dict = {}   # stage → int count
+        self.pipeline_errors: dict = {}   # stage → structured error metadata
 
         self.live: Optional[Live] = None
         self.keyboard_handler = KeyboardHandler(self)
@@ -140,6 +141,7 @@ class ScoutTerminal:
             self.screen = "loading"
             self.pipeline_stages = {s: "pending" for s in ["maps", "bizbuysell", "reddit", "ai_analysis"]}
             self.pipeline_counts = {}
+            self.pipeline_errors = {}
             self._update_display()
 
             self.status = "Searching data sources..."
@@ -155,6 +157,7 @@ class ScoutTerminal:
                 include_benchmarks=True,
                 on_progress=self._on_pipeline_progress,
             )
+            self._sync_pipeline_health(result)
 
             self.businesses = [self._business_to_dict(b) for b in result.businesses]
             # Keep source order; no scoring-based ranking for now.
@@ -241,24 +244,29 @@ class ScoutTerminal:
         }
 
         for stage, label in stage_labels.items():
-            status = self.pipeline_stages.get(stage, "pending")
+            status = self._normalize_stage_status(self.pipeline_stages.get(stage, "pending"))
             count = self.pipeline_counts.get(stage, 0)
 
-            if status == "done":
+            if status == "success":
                 icon = "✓"
                 icon_style = "green"
                 detail = f"{count:,} found" if count else "done"
                 detail_style = "dim white"
+            elif status == "degraded":
+                icon = "!"
+                icon_style = "yellow"
+                detail = f"{count:,} partial" if count else "partial"
+                detail_style = "yellow"
             elif status == "running":
                 icon = "⠸"
                 icon_style = "yellow"
                 detail = "fetching..."
                 detail_style = "yellow"
-            elif status == "error":
+            elif status == "failed":
                 icon = "✗"
                 icon_style = "red"
-                detail = "unavailable"
-                detail_style = "dim white"
+                detail = "failed"
+                detail_style = "red"
             else:  # pending
                 icon = "◻"
                 icon_style = "dim white"
@@ -266,7 +274,10 @@ class ScoutTerminal:
                 detail_style = "dim white"
 
             t.append(f"  {icon}  ", style=icon_style)
-            t.append(f"{label:<20}", style="white" if status == "running" else "dim white")
+            t.append(
+                f"{label:<20}",
+                style="white" if status in {"running", "degraded"} else "dim white",
+            )
             t.append(f"{detail}\n\n", style=detail_style)
 
         layout["body"].update(
@@ -854,12 +865,49 @@ class ScoutTerminal:
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
-    def _on_pipeline_progress(self, stage: str, status: str, count: int = 0) -> None:
+    def _on_pipeline_progress(
+        self,
+        stage: str,
+        status: str,
+        count: int = 0,
+        error: Optional[Dict] = None,
+    ) -> None:
         """Receive progress update from ResearchMarket pipeline."""
-        self.pipeline_stages[stage] = status
-        if count:
-            self.pipeline_counts[stage] = count
+        self.pipeline_stages[stage] = self._normalize_stage_status(status)
+        self.pipeline_counts[stage] = count
+        if error:
+            self.pipeline_errors[stage] = error
+        elif self.pipeline_stages[stage] == "success":
+            self.pipeline_errors.pop(stage, None)
         self._update_display()
+
+    def _sync_pipeline_health(self, result) -> None:
+        """Sync UI stage state from final result health envelope."""
+        health = getattr(result, "health", None)
+        stages = getattr(health, "stages", None)
+        if not stages:
+            return
+
+        self.pipeline_stages = {}
+        self.pipeline_counts = {}
+        self.pipeline_errors = {}
+        for stage, payload in stages.items():
+            status = self._normalize_stage_status(getattr(payload, "status", "pending"))
+            count = int(getattr(payload, "count", 0) or 0)
+            error = getattr(payload, "error", None)
+            self.pipeline_stages[stage] = status
+            self.pipeline_counts[stage] = count
+            if error:
+                self.pipeline_errors[stage] = error
+
+    @staticmethod
+    def _normalize_stage_status(status: str) -> str:
+        """Normalize legacy stage statuses to explicit health statuses."""
+        aliases = {
+            "done": "success",
+            "error": "failed",
+        }
+        return aliases.get(status, status)
 
     def _business_to_dict(self, business) -> Dict:
         signals = []

@@ -2,7 +2,6 @@
 
 from typing import List
 
-from data_sources.marketplaces.base import ListingQuery
 from data_sources.marketplaces.pipeline import FetchPipeline
 from data_sources.marketplaces.bizbuysell import BizBuySellProvider
 from data_sources.marketplaces.store import ListingStore
@@ -31,12 +30,9 @@ class BizBuySellAdapter:
 
         Returns a list of Listing domain objects.
         """
-        try:
-            return self._pipeline.run(
-                industry=industry,
-                location=location,
-                max_results=max_results,
-                use_cache=use_cache,
-            )
-        except Exception:
-            return []
+        return self._pipeline.run(
+            industry=industry,
+            location=location,
+            max_results=max_results,
+            use_cache=use_cache,
+        )

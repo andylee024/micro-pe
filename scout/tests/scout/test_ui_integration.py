@@ -5,6 +5,14 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 from scout.ui.terminal import ScoutTerminal
 from scout.ui.keyboard import KeyboardHandler
+from scout.domain.models import (
+    Business,
+    MarketSummary,
+    ResearchResult,
+    PipelineHealth,
+    SourceStageHealth,
+    MarketOverview,
+)
 
 
 @pytest.fixture
@@ -147,7 +155,7 @@ class TestFullUIPipeline:
         assert terminal.scroll_offset == 0
 
     def test_error_handling_in_ui(self):
-        """Test: API error shows user-friendly message in UI"""
+        """Test: source failure is explicit in UI stage state without crashing the UI."""
         with patch('data_sources.maps.google_maps.GoogleMapsTool.search') as mock_search:
             # Simulate API error
             mock_search.side_effect = ConnectionError("Network connection failed")
@@ -160,9 +168,62 @@ class TestFullUIPipeline:
             # Simulate data fetch with error
             terminal._fetch_data()
 
-            # Verify error is handled gracefully
-            assert "Error" in terminal.status or terminal.error_message is not None
+            # Verify source-level failure is explicit while UI remains usable.
+            assert terminal.status == "Ready"
             assert len(terminal.businesses) == 0
+            assert terminal.pipeline_stages.get("maps") == "failed"
+            assert terminal.pipeline_stages.get("maps") != "done"
+            assert terminal.pipeline_errors.get("maps", {}).get("type") == "ConnectionError"
+
+    def test_ui_uses_failed_stage_status_from_result_health(self):
+        """Failed source stages should remain failed in UI progress state (not done)."""
+        result = ResearchResult(
+            summary=MarketSummary(
+                industry="HVAC",
+                location="Los Angeles",
+                total_businesses=1,
+                query="HVAC in Los Angeles",
+            ),
+            businesses=[
+                Business(
+                    name="Reliable HVAC Co",
+                    address="Los Angeles, CA",
+                    rating=4.4,
+                    reviews=180,
+                    category="HVAC",
+                )
+            ],
+            market_overview=MarketOverview(total_businesses=1),
+            health=PipelineHealth(
+                overall_status="degraded",
+                stages={
+                    "maps": SourceStageHealth(status="success", count=1),
+                    "bizbuysell": SourceStageHealth(
+                        status="failed",
+                        count=0,
+                        error={
+                            "type": "RuntimeError",
+                            "message": "BizBuySell unavailable",
+                            "source": "bizbuysell",
+                            "stage": "bizbuysell",
+                        },
+                    ),
+                    "reddit": SourceStageHealth(status="success", count=0),
+                    "ai_analysis": SourceStageHealth(status="success", count=0),
+                },
+            ),
+        )
+
+        with patch("scout.application.research_market.ResearchMarket.run", return_value=result):
+            terminal = ScoutTerminal(industry="HVAC", location="Los Angeles")
+            terminal._fetch_data()
+
+        assert len(terminal.businesses) == 1
+        assert terminal.pipeline_stages["maps"] == "success"
+        assert terminal.pipeline_counts["maps"] == 1
+        assert terminal.pipeline_stages["bizbuysell"] == "failed"
+        assert terminal.pipeline_stages["bizbuysell"] != "done"
+        assert terminal.pipeline_errors["bizbuysell"]["type"] == "RuntimeError"
 
 
 class TestKeyboardInteraction:

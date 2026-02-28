@@ -281,6 +281,61 @@ class MarketPulse:
             "sources": self.sources.to_dict(),
         }
 
+
+@dataclass
+class SourceStageHealth:
+    """Per-source pipeline stage health."""
+
+    status: str = "success"  # success | degraded | failed
+    count: int = 0
+    error: Optional[Dict[str, Any]] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any] | None) -> "SourceStageHealth":
+        data = data or {}
+        return cls(
+            status=str(data.get("status", "success")),
+            count=_safe_int(data.get("count", 0), 0),
+            error=data.get("error"),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "status": self.status,
+            "count": self.count,
+            "error": self.error,
+        }
+
+
+@dataclass
+class PipelineHealth:
+    """Overall pipeline health summary for downstream consumers."""
+
+    overall_status: str = "success"  # success | degraded | failed
+    stages: Dict[str, SourceStageHealth] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any] | None) -> "PipelineHealth":
+        data = data or {}
+        stage_data = data.get("stages", {}) or {}
+        return cls(
+            overall_status=str(data.get("overall_status", "success")),
+            stages={
+                stage: SourceStageHealth.from_dict(payload)
+                for stage, payload in stage_data.items()
+            },
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "overall_status": self.overall_status,
+            "stages": {
+                stage: payload.to_dict()
+                for stage, payload in self.stages.items()
+            },
+        }
+
+
 @dataclass
 class MarketSummary:
     industry: str
@@ -296,3 +351,4 @@ class ResearchResult:
     businesses: List[Business]
     pulse: MarketPulse = field(default_factory=MarketPulse)
     market_overview: MarketOverview = field(default_factory=MarketOverview)
+    health: PipelineHealth = field(default_factory=PipelineHealth)

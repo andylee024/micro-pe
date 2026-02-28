@@ -1,7 +1,7 @@
 """Use-case: research a market with multiple data sources."""
 
 import statistics
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple
 
 from scout.domain.models import (
     ResearchResult,
@@ -10,11 +10,14 @@ from scout.domain.models import (
     Benchmark,
     MarketOverview,
     MarketPulse,
+    PipelineHealth,
+    SourceStageHealth,
 )
 from scout.adapters.maps import GoogleMapsAdapter
 from scout.adapters.bizbuysell import BizBuySellAdapter
 from scout.adapters.reddit import RedditSearchAdapter
 from scout.application.benchmarking import compute_benchmarks_from_listings
+from scout.shared.errors import build_error_metadata
 
 
 class ResearchMarket:
@@ -34,47 +37,76 @@ class ResearchMarket:
         include_reddit: bool = True,
         on_progress=None,
     ) -> ResearchResult:
-        def _progress(stage: str, status: str, count: int = 0):
-            if on_progress:
+        stage_health: Dict[str, SourceStageHealth] = {}
+
+        def _progress(
+            stage: str,
+            status: str,
+            count: int = 0,
+            error: Optional[Dict[str, Any]] = None,
+        ) -> None:
+            stage_health[stage] = SourceStageHealth(
+                status=status,
+                count=count,
+                error=error,
+            )
+            if not on_progress:
+                return
+            try:
+                # New progress contract with structured error metadata.
+                on_progress(stage, status, count, error)
+            except TypeError:
+                # Backward compatibility for callbacks expecting (stage, status, count).
                 try:
                     on_progress(stage, status, count)
                 except Exception:
-                    pass  # never let progress callbacks crash the pipeline
+                    pass
+            except Exception:
+                pass  # never let progress callbacks crash the pipeline
 
+        businesses: List[Business] = []
         _progress("maps", "running")
-        businesses: List[Business] = self.maps.search(
-            industry=industry,
-            location=location,
-            max_results=max_results,
-            use_cache=use_cache,
-        )
-        _progress("maps", "done", len(businesses))
+        try:
+            businesses = self.maps.search(
+                industry=industry,
+                location=location,
+                max_results=max_results,
+                use_cache=use_cache,
+            )
+            _progress("maps", "success", len(businesses))
+        except Exception as error:
+            _progress(
+                "maps",
+                "failed",
+                0,
+                build_error_metadata(error, source="maps", stage="maps"),
+            )
 
         # --- BizBuySell ---
         bbs_listings: List[dict] = []
         benchmarks: List[Benchmark] = []
         if include_benchmarks:
             _progress("bizbuysell", "running")
-            bizbuysell_error = False
             try:
                 bbs_data = self.bizbuysell.search(industry, location, use_cache=use_cache)
                 if isinstance(bbs_data, list):
                     bbs_listings = bbs_data
                 elif isinstance(bbs_data, dict):
                     bbs_listings = bbs_data.get("results", bbs_data.get("listings", []))
-            except Exception:
-                bizbuysell_error = True  # BizBuySell unavailable — proceed without it
-
-            if bizbuysell_error:
-                _progress("bizbuysell", "error")
-            else:
                 benchmark = compute_benchmarks_from_listings(industry, bbs_listings)
                 if benchmark:
                     benchmarks.append(benchmark)
                     self._apply_benchmark_estimates(businesses, benchmark)
-                _progress("bizbuysell", "done", len(bbs_listings))
+                _progress("bizbuysell", "success", len(bbs_listings))
+            except Exception as error:
+                _progress(
+                    "bizbuysell",
+                    "failed",
+                    0,
+                    build_error_metadata(error, source="bizbuysell", stage="bizbuysell"),
+                )
         else:
-            _progress("bizbuysell", "done")
+            _progress("bizbuysell", "success")
 
         # Apply per-business financial estimates using benchmark signals
         from scout.application.estimate_financials import estimate_business_financials
@@ -95,34 +127,52 @@ class ResearchMarket:
         pulse: MarketPulse = MarketPulse()
         if include_reddit:
             _progress("reddit", "running")
-            reddit_error = False
             reddit_data = {"thread_count": 0, "reddit_threads": []}
             try:
                 reddit_data = self.reddit.search(industry, location, use_cache=use_cache)
-            except Exception:
-                reddit_error = True
-
-            if reddit_error:
-                _progress("reddit", "error")
-                _progress("ai_analysis", "error")
-                pulse = MarketPulse()
-            else:
-                _progress("reddit", "done", reddit_data.get("thread_count", 0))
+                _progress("reddit", "success", reddit_data.get("thread_count", 0))
                 # AI analysis stage
                 _progress("ai_analysis", "running")
-                pulse = self._synthesize_pulse_from_reddit(reddit_data, industry)
-                _progress("ai_analysis", "done")
+                pulse, ai_error = self._synthesize_pulse_from_reddit(reddit_data, industry)
+                if ai_error:
+                    _progress("ai_analysis", "degraded", 0, ai_error)
+                else:
+                    _progress("ai_analysis", "success")
+            except Exception as error:
+                _progress(
+                    "reddit",
+                    "failed",
+                    0,
+                    build_error_metadata(error, source="reddit", stage="reddit"),
+                )
+                _progress(
+                    "ai_analysis",
+                    "degraded",
+                    0,
+                    {
+                        "type": "UpstreamFailure",
+                        "message": "Skipped because reddit stage failed",
+                        "source": "reddit",
+                        "stage": "ai_analysis",
+                    },
+                )
+                pulse = MarketPulse()
         else:
-            _progress("reddit", "done")
-            _progress("ai_analysis", "done")
+            _progress("reddit", "success")
+            _progress("ai_analysis", "success")
 
         market_overview = self._compute_market_overview(businesses, bbs_listings, industry)
+        pipeline_health = PipelineHealth(
+            overall_status=self._compute_overall_status(stage_health),
+            stages=stage_health,
+        )
 
         return ResearchResult(
             summary=summary,
             businesses=businesses,
             pulse=pulse,
             market_overview=market_overview,
+            health=pipeline_health,
         )
 
     # ------------------------------------------------------------------
@@ -147,7 +197,7 @@ class ResearchMarket:
 
     def _synthesize_pulse_from_reddit(
         self, reddit_data: dict, industry: str
-    ) -> MarketPulse:
+    ) -> Tuple[MarketPulse, Optional[Dict[str, Any]]]:
         """Use Claude to extract structured insights from Reddit threads."""
         from scout import config
 
@@ -175,7 +225,7 @@ class ResearchMarket:
         }
 
         if not threads or not config.ANTHROPIC_API_KEY:
-            return MarketPulse.from_dict(base_pulse)
+            return MarketPulse.from_dict(base_pulse), None
 
         try:
             import anthropic
@@ -233,10 +283,25 @@ Keep each item to 1 sentence. Be specific to {industry}."""
                 }
             )
 
-        except Exception:
-            pass  # Fall back to base_pulse on any error
+        except Exception as error:
+            return (
+                MarketPulse.from_dict(base_pulse),
+                build_error_metadata(error, source="ai_analysis", stage="ai_analysis"),
+            )
 
-        return MarketPulse.from_dict(base_pulse)
+        return MarketPulse.from_dict(base_pulse), None
+
+    @staticmethod
+    def _compute_overall_status(stage_health: Dict[str, SourceStageHealth]) -> str:
+        """Summarize overall pipeline health from per-stage statuses."""
+        statuses = [stage.status for stage in stage_health.values() if stage.status != "running"]
+        if not statuses:
+            return "success"
+        if all(status == "failed" for status in statuses):
+            return "failed"
+        if any(status in {"failed", "degraded"} for status in statuses):
+            return "degraded"
+        return "success"
 
     def _compute_market_overview(
         self, businesses: List[Business], bbs_listings: list, industry: str

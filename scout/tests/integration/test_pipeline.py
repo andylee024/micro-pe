@@ -20,6 +20,8 @@ from data_sources.fdd.aggregator import FDDAggregator
 from data_sources.maps.google_maps import GoogleMapsTool
 from data_sources.maps.google_reviews import GoogleReviewsScraper
 from data_sources.sentiment.reddit import RedditSentimentScraper
+from scout.application.research_market import ResearchMarket
+from scout.domain.models import Business
 
 
 def test_fdd_aggregator_unified_interface():
@@ -258,6 +260,66 @@ def test_all_sources_implement_search_method(mock_client):
         user_agent="test"
     )
     assert hasattr(reddit, 'search')
+
+
+def test_research_market_source_failure_health_envelope(monkeypatch):
+    """Source exceptions should surface failed status + error metadata without killing output."""
+    use_case = ResearchMarket()
+
+    monkeypatch.setattr(
+        use_case.maps,
+        "search",
+        lambda **kwargs: [
+            Business(
+                name="Reliable HVAC Co",
+                address="Austin, TX",
+                rating=4.5,
+                reviews=120,
+                category="HVAC",
+            )
+        ],
+    )
+
+    def _raise_bizbuysell_error(*args, **kwargs):
+        raise RuntimeError("BizBuySell unavailable")
+
+    monkeypatch.setattr(use_case.bizbuysell, "search", _raise_bizbuysell_error)
+    monkeypatch.setattr(
+        use_case.reddit,
+        "search",
+        lambda *args, **kwargs: {"thread_count": 0, "reddit_threads": []},
+    )
+
+    progress_events = []
+
+    def _progress(stage, status, count, error=None):
+        progress_events.append((stage, status, count, error))
+
+    result = use_case.run(
+        industry="HVAC",
+        location="Austin, TX",
+        max_results=5,
+        include_benchmarks=True,
+        include_reddit=False,
+        on_progress=_progress,
+    )
+
+    # Partial output still exists from successful sources.
+    assert len(result.businesses) == 1
+    assert result.summary.total_businesses == 1
+
+    # Failed source is explicit in final result health envelope.
+    assert result.health.overall_status == "degraded"
+    assert result.health.stages["maps"].status == "success"
+    assert result.health.stages["bizbuysell"].status == "failed"
+    assert result.health.stages["bizbuysell"].error is not None
+    assert result.health.stages["bizbuysell"].error["type"] == "RuntimeError"
+    assert "unavailable" in result.health.stages["bizbuysell"].error["message"].lower()
+
+    # Progress callback should never report legacy done status for failed stages.
+    bizbuysell_statuses = [status for stage, status, _, _ in progress_events if stage == "bizbuysell"]
+    assert "failed" in bizbuysell_statuses
+    assert "done" not in bizbuysell_statuses
 
 
 if __name__ == "__main__":

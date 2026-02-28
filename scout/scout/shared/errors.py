@@ -1,6 +1,6 @@
 """Error handling utilities for Scout"""
 
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Any, Dict
 from functools import wraps
 import traceback
 import sys
@@ -259,3 +259,15 @@ def handle_file_error(error: Exception, file_path: str, operation: str = "access
         message = f"Failed to {operation} file {file_path}: {str(error)}"
 
     return FileIOError(message)
+
+
+def build_error_metadata(error: Exception, source: str = "", stage: str = "") -> Dict[str, Any]:
+    """Build consistent machine-readable error metadata for stage envelopes."""
+    source_name = source or stage
+    stage_name = stage or source
+    return {
+        "type": type(error).__name__,
+        "message": str(error),
+        "source": source_name,
+        "stage": stage_name,
+    }
