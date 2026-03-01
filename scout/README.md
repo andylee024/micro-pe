@@ -2,22 +2,111 @@
 
 Automated system for finding and evaluating small businesses for acquisition.
 
+## Scout V0 - Terminal UI
+
+Scout V0 brings a Bloomberg-style terminal interface for researching small businesses. Search for businesses in any industry and location, view results in a professional table, and export to CSV.
+
+### Quick Start
+
+```bash
+# Install Scout
+pip install -e .
+
+# Research a market
+scout research "HVAC businesses in Los Angeles"
+```
+
+The terminal UI will launch with:
+- Live scrollable table of businesses
+- Keyboard navigation (↑↓ to scroll)
+- CSV export ([E] key)
+- Help panel ([H] key)
+- Professional Bloomberg-style interface
+
+### Terminal Interface
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ SCOUT - Market Research                                          │
+│ Query: HVAC businesses in Los Angeles                            │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ 📊 Building universe...                                          │
+│    ✓ Searching Google Maps                                       │
+│    ✓ Found 487 HVAC businesses in Los Angeles area              │
+│                                                                  │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
+│                                                                  │
+│ 📋 HVAC Businesses in Los Angeles                  487 results  │
+│                                                                  │
+│  Name                     Phone             Website              │
+│  ────────────────────────────────────────────────────────────────│
+│  Cool Air HVAC           (310) 555-0100    coolair.com          │
+│  Premier Climate         (310) 555-0200    premierclimate.com   │
+│  ...                                                             │
+│                                                                  │
+│  [↑↓] Scroll  [E]xport CSV  [Q]uit  [H]elp                      │
+│                                                                  │
+├──────────────────────────────────────────────────────────────────┤
+│ Status: Ready • 487 businesses found • Cached for 90 days       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Keyboard Shortcuts
+
+- **↑ / ↓** - Scroll through businesses
+- **E** - Export to CSV
+- **Q** - Quit
+- **H** - Show help panel
+
+### CSV Export
+
+Press **E** to export all businesses to CSV:
+
+```csv
+name,address,phone,website,category
+Cool Air HVAC,"1234 Wilshire Blvd, Los Angeles, CA 90010",(310) 555-0100,coolair.com,HVAC
+Premier Climate,"456 Main St, Santa Monica, CA 90401",(310) 555-0200,premierclimate.com,HVAC
+```
+
+Files are saved to `outputs/` with timestamped names:
+- Format: `{industry}_{location}_{YYYY-MM-DD}.csv`
+- Example: `hvac_los_angeles_2026-02-19.csv`
+
+### Caching
+
+Results are cached for 90 days. Repeated searches are instant:
+- First search: ~3-5 seconds (API calls)
+- Cached search: <1 second
+
+Use `--no-cache` flag to bypass cache:
+```bash
+scout research "HVAC in Los Angeles" --no-cache
+```
+
+---
+
 ## Architecture
 
 ```
 scout/
-├── scrapers/              # Data collection modules
-│   ├── google_maps.py     # Universe builder (find all businesses)
-│   └── bizbuysell.py      # Benchmark builder (financial distributions)
+├── scout/                 # Terminal app (CLI, UI, domain, adapters)
+│   ├── application/
+│   ├── domain/
+│   ├── adapters/
+│   ├── ui/
+│   └── shared/
 │
-├── utils/                 # Helper functions
-│   └── financials.py      # Calculate multiples, apply benchmarks
+├── data_sources/          # Data acquisition layer (scrapers/tools)
+│   ├── maps/
+│   ├── marketplaces/
+│   ├── fdd/
+│   └── shared/
 │
 ├── outputs/               # All results saved here
-│
-├── config.py              # Configuration management
-├── main.py                # CLI entry point
-└── requirements.txt       # Dependencies
+├── config/                # Config helpers
+├── scripts/               # Demo and ops scripts
+└── pyproject.toml         # Dependencies / packaging
 ```
 
 ## How It Works
@@ -230,6 +319,33 @@ python main.py benchmarks "HVAC" 30
 ```
 
 ## Troubleshooting
+
+### Scout V0 Terminal UI
+
+**"GOOGLE_MAPS_API_KEY not found in .env file"**
+- Create `.env` file in project root
+- Add: `GOOGLE_MAPS_API_KEY=your_key_here`
+- Get API key from [Google Cloud Console](https://console.cloud.google.com/)
+
+**"Network connection failed"**
+- Check your internet connection
+- Verify Google Maps API is accessible
+- Try again after a few moments
+
+**Terminal UI doesn't display properly**
+- Ensure terminal supports Unicode and colors
+- Try resizing terminal window
+- Use a modern terminal (iTerm2, Terminal.app, etc.)
+
+**CSV export fails**
+- Check that `outputs/` directory is writable
+- Verify sufficient disk space
+- Check file permissions
+
+**Keyboard shortcuts don't work**
+- Some terminals may not support arrow keys in all contexts
+- Try using a different terminal emulator
+- Check that terminal is in focus
 
 ### Google Maps API Errors
 

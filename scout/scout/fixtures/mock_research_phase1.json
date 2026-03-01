@@ -1,0 +1,86 @@
+{
+  "summary": {
+    "industry": "HVAC",
+    "location": "Los Angeles, CA",
+    "total_businesses": 47,
+    "benchmarks": [
+      {
+        "industry": "HVAC",
+        "median_revenue": 850000,
+        "median_cash_flow": 225000,
+        "median_multiple": 3.3,
+        "margin_pct": 26.0,
+        "sample_size": 18,
+        "source": "bizbuysell+fdd"
+      }
+    ]
+  },
+  "market_overview": {
+    "total_businesses": 47,
+    "market_density": "dense",
+    "est_market_value": "$520M",
+    "financial": {
+      "fdd_count": 18,
+      "confidence": "medium",
+      "median_revenue": "$850K",
+      "revenue_range": "$420K-$1.9M",
+      "ebitda_margin": "26.0%",
+      "margin_range": "18%-34%",
+      "typical_acquisition": "$740K-$1.3M"
+    },
+    "quality": {
+      "avg_rating": 4.3,
+      "sentiment_positive": 57,
+      "review_volume": 18420
+    },
+    "trends": {
+      "job_postings": "+12%",
+      "new_entrants": "flat",
+      "search_volume": "+8%"
+    },
+    "outlook": {
+      "grade": "B+",
+      "note": "steady demand, labor tight"
+    }
+  },
+  "pulse": {
+    "reddit": {
+      "thread_count": 23,
+      "overall": "Mixed",
+      "overall_emoji": ":|",
+      "positive_pct": 52,
+      "top_thread": {
+        "title": "HVAC maintenance contracts are the real margin driver",
+        "subreddit": "sweatystartup",
+        "upvotes": 312,
+        "comments": 88,
+        "permalink": "https://www.reddit.com/r/sweatystartup/"
+      },
+      "key_points_pos": [
+        "Recurring maintenance revenue stabilizes cash flow",
+        "Commercial clients renew at high rates"
+      ],
+      "key_points_neg": [
+        "Technician churn hurts growth",
+        "Parts delays push lead times"
+      ]
+    },
+    "trends": {
+      "job_postings": "+12%",
+      "new_entrants": "flat"
+    },
+    "insights": [
+      "Demand steady in coastal zip codes",
+      "Price increases holding without churn"
+    ],
+    "green_flags": [
+      "Recurring revenue",
+      "Commercial mix",
+      "Strong reviews"
+    ],
+    "red_flags": [
+      "Owner-operator reliance",
+      "Labor tight"
+    ]
+  }
+}
