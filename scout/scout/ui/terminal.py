@@ -5,7 +5,6 @@ import re
 import threading
 import time
 from typing import Dict, List, Optional
-from pathlib import Path
 import webbrowser
 
 from rich.console import Console
@@ -20,7 +19,6 @@ from .components import (
     create_scout_assistant_panel,
     create_header_text,
     create_footer_text,
-    create_help_panel,
     create_progress_panel,
     create_main_layout,
 )

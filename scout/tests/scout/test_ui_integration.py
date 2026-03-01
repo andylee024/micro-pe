@@ -1,10 +1,8 @@
 """End-to-end integration tests for Terminal UI"""
 
 import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import patch
 from scout.ui.terminal import ScoutTerminal
-from scout.ui.keyboard import KeyboardHandler
 from scout.domain.models import (
     Business,
     MarketSummary,
@@ -233,7 +231,6 @@ class TestKeyboardInteraction:
         """Test keyboard events are dispatched correctly"""
         terminal = ScoutTerminal(industry="HVAC", location="LA")
         terminal.businesses = mock_businesses
-        handler = terminal.keyboard_handler
 
         # Test scrolling methods directly (not via key dispatch which has special key codes)
         initial_offset = terminal.scroll_offset

@@ -17,7 +17,6 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from data_sources.fdd.aggregator import FDDAggregator
-from data_sources.maps.google_maps import GoogleMapsTool
 from data_sources.maps.google_reviews import GoogleReviewsScraper
 from data_sources.sentiment.reddit import RedditSentimentScraper
 from scout.application.research_market import ResearchMarket
