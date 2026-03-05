@@ -105,6 +105,24 @@ class TestStateSlug:
         assert len(_STATE_ABBREV_TO_NAME) >= 50
 
 
+# --- Driver version helpers ---
+
+
+class TestDriverVersionHelpers:
+    def test_extract_major_version(self, provider):
+        assert provider._extract_major_version("Google Chrome 145.0.7632.117") == 145
+        assert provider._extract_major_version("Chromium 122.0.6261.111") == 122
+        assert provider._extract_major_version("not-a-version") is None
+
+    def test_extract_browser_major_from_driver_error(self, provider):
+        error = (
+            "This version of ChromeDriver only supports Chrome version 146. "
+            "Current browser version is 145.0.7632.117"
+        )
+        assert provider._extract_browser_major_from_driver_error(error) == 145
+        assert provider._extract_browser_major_from_driver_error("different error") is None
+
+
 # --- BBS-state parsing ---
 
 

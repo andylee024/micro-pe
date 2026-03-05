@@ -1,15 +1,18 @@
 # Docs Guide
 
-This repo uses a single canonical PRD plus per‑feature workspaces.
+This repo now keeps one active product narrative plus one active data-pipeline plan.
 
-## Canonical Product Doc
-- `docs/prd.md` — vision, problem, roadmap, and success metrics in one place.
+## Active Docs
+- `docs/prd.md` — canonical product requirements and roadmap.
+- `docs/architecture.md` — current codebase structure and runtime flow.
+- `docs/feature/v1-data-pipeline/plan.md` — canonical pipeline naming, workflow, and ETL design.
 
-## Architecture
-- `docs/architecture.md` — how the codebase is organized and how it supports the PRD.
+## Archive Summaries
+- `docs/_archive/v0-listings-summary.md` — condensed record of early listings pipeline discovery.
+- `docs/_archive/v0-data-summary.md` — condensed record of early multi-source data work and refactor lessons.
+- `docs/_archive/ui-history-summary.md` — condensed record of terminal UI evolution.
 
-## Feature Workspaces
-- `docs/feature/*` — one folder per feature for design notes, plans, and research.
-
-## Archive
-- `docs/_archive/` — deprecated or superseded docs.
+## Archive Policy
+- Keep active docs minimal and canonical.
+- Consolidate superseded feature docs into short archive summaries.
+- Remove placeholder docs that duplicate no real decisions.

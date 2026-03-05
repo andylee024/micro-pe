@@ -1,4 +1,31 @@
-# Repository Guidelines
+# AGENTS.md
+
+## Farm-Orchestrated Coding (Required)
+
+For any coding task in this repository:
+
+1. Read `/Users/andylee/Projects/farm/AGENTS.md` before starting.
+2. Use Farm CLI as the control plane for Linear coding task lifecycle.
+3. Do not create or move coding tasks via Linear MCP tools or ad-hoc scripts.
+4. Keep planning/business logic in Farm skills/docs, not in repository orchestration scripts.
+
+Recommended defaults:
+
+- `FARM_CONFIG=/Users/andylee/Projects/farm/config.yaml`
+- `REPO_KEY=scout`
+
+Farm runtime commands (coding tasks):
+
+```bash
+farm run --config "$FARM_CONFIG" --repo "$REPO_KEY" --issue "<child-issue-id>"
+farm update --config "$FARM_CONFIG" --repo "$REPO_KEY" --issue "<child-issue-id>" --phase running --summary "Current step"
+farm finish --config "$FARM_CONFIG" --repo "$REPO_KEY" --issue "<child-issue-id>" --outcome completed --summary "Complete" --pr-url "<optional-pr-url>"
+farm status --config "$FARM_CONFIG" --repo "$REPO_KEY" --issue "<child-issue-id>"
+```
+
+This file contains Scout-specific build, test, and coding guidance only.
+
+## Repository Guidelines
 
 ## Project Structure & Module Organization
 - `scout/` is the project root (Python package + configs). Key areas:
