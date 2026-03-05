@@ -10,7 +10,8 @@ import pytest
 
 from data_sources.maps.google_maps import GoogleMapsTool
 from data_sources.maps.google_reviews import GoogleReviewsScraper
-from data_sources.marketplaces.bizbuysell import BizBuySellTool
+from data_sources.marketplaces.bizbuysell import BizBuySellProvider as BizBuySellTool
+from data_sources.marketplaces.base import ListingQuery
 from data_sources.fdd.minnesota import MinnesotaFDDScraper
 from data_sources.sentiment.reddit import RedditSentimentScraper
 from data_sources.shared.config import ScraperConfig
@@ -54,10 +55,9 @@ def test_bizbuysell_smoke():
     _skip_live("Set SCOUT_LIVE_TESTS=1 to run live data source tests")
 
     tool = BizBuySellTool()
-    result = tool.search("car wash", max_results=5, use_cache=False)
-    assert result.get("source") == "bizbuysell"
-    assert isinstance(result.get("results"), list)
-    if not result.get("results"):
+    listings = tool.search(ListingQuery("car wash", "california", 5), use_cache=False)
+    assert isinstance(listings, list)
+    if not listings:
         pytest.skip("BizBuySell returned no listings (possible bot block)")
 
 

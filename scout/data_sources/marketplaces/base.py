@@ -36,6 +36,12 @@ class MarketplaceProvider(ABC):
         self.cache_dir = cache_dir or Path("outputs/cache")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.logger = logging.getLogger(self.__class__.__name__)
+        self._last_market_stats: dict = {}
+
+    @property
+    def market_stats(self) -> dict:
+        """Market benchmark stats from the last fetch (empty dict if not yet fetched)."""
+        return self._last_market_stats
 
     @abstractmethod
     def _fetch(self, query: ListingQuery) -> List[Listing]:
@@ -51,6 +57,7 @@ class MarketplaceProvider(ABC):
             if cached is not None:
                 self.logger.info(f"Cache hit: {cache_key}")
                 return cached
+            # _load_cache also populates self._last_market_stats from cached data
 
         listings = self._fetch(query)
         now = datetime.now().isoformat()
@@ -79,6 +86,7 @@ class MarketplaceProvider(ABC):
             cached_at = datetime.fromisoformat(data["cached_at"])
             if (datetime.now() - cached_at).days > self.CACHE_TTL_DAYS:
                 return None
+            self._last_market_stats = data.get("market_stats", {})
             return [Listing.from_dict(d) for d in data["listings"]]
         except Exception as e:
             self.logger.warning(f"Cache load failed for {cache_key}: {e}")
@@ -90,6 +98,7 @@ class MarketplaceProvider(ABC):
             data = {
                 "cached_at": datetime.now().isoformat(),
                 "listings": [l.to_dict() for l in listings],
+                "market_stats": self._last_market_stats,
             }
             with open(cache_file, "w") as f:
                 json.dump(data, f, indent=2, default=str)

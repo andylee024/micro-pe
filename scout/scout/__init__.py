@@ -1,3 +1,3 @@
-"""Scout - Terminal-based tool for researching small businesses"""
+"""Scout data pipeline."""
 
 __version__ = "0.1.0"

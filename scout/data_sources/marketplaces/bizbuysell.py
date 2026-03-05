@@ -7,6 +7,8 @@ Requires non-headless Chrome (Akamai blocks headless mode).
 import json
 import logging
 import random
+import re
+import subprocess
 import time
 from typing import Dict, List, Optional, Tuple
 
@@ -117,8 +119,88 @@ class BizBuySellProvider(MarketplaceProvider):
         opts.add_argument("--window-size=1920,1080")
         opts.add_argument("--no-sandbox")
         opts.add_argument("--disable-dev-shm-usage")
-        driver = uc.Chrome(options=opts, use_subprocess=True)
-        return driver
+
+        local_major = self._detect_local_chrome_major()
+        if local_major:
+            self.logger.info(
+                f"Detected local Chrome major version {local_major}; "
+                f"starting driver with version_main={local_major}"
+            )
+            try:
+                return uc.Chrome(options=opts, use_subprocess=True, version_main=local_major)
+            except Exception as exc:
+                self.logger.warning(
+                    "Pinned driver startup failed for detected Chrome major "
+                    f"{local_major}: {exc}"
+                )
+
+        try:
+            return uc.Chrome(options=opts, use_subprocess=True)
+        except Exception as exc:
+            extracted_major = self._extract_browser_major_from_driver_error(str(exc))
+            if extracted_major and extracted_major != local_major:
+                self.logger.warning(
+                    "Retrying driver startup with extracted browser major "
+                    f"{extracted_major}"
+                )
+                return uc.Chrome(
+                    options=opts,
+                    use_subprocess=True,
+                    version_main=extracted_major,
+                )
+            raise
+
+    @staticmethod
+    def _extract_major_version(version_text: str) -> Optional[int]:
+        """Extract Chrome major version from a version string."""
+        if not version_text:
+            return None
+        match = re.search(r"(\d+)\.", version_text)
+        if not match:
+            return None
+        return int(match.group(1))
+
+    @staticmethod
+    def _extract_browser_major_from_driver_error(error_text: str) -> Optional[int]:
+        """Extract browser major version from a ChromeDriver mismatch error."""
+        if not error_text:
+            return None
+        match = re.search(r"Current browser version is (\d+)\.", error_text)
+        if not match:
+            return None
+        return int(match.group(1))
+
+    def _detect_local_chrome_major(self) -> Optional[int]:
+        """Best-effort detection of locally installed Chrome major version."""
+        commands = [
+            ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--version"],
+            ["/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary", "--version"],
+            ["google-chrome", "--version"],
+            ["google-chrome-stable", "--version"],
+            ["chromium", "--version"],
+            ["chromium-browser", "--version"],
+        ]
+        for command in commands:
+            try:
+                proc = subprocess.run(
+                    command,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=4,
+                )
+            except (FileNotFoundError, OSError, subprocess.SubprocessError):
+                continue
+
+            if proc.returncode != 0:
+                continue
+
+            output = (proc.stdout or proc.stderr or "").strip()
+            major = self._extract_major_version(output)
+            if major:
+                return major
+
+        return None
 
     def _build_url(self, query: ListingQuery, page: int = 1) -> str:
         """Build the BizBuySell search URL for industry + location + page."""
@@ -274,6 +356,55 @@ class BizBuySellProvider(MarketplaceProvider):
             return None
 
     @staticmethod
+    def _find_market_stats(data: dict) -> dict:
+        """Extract market benchmark stats from BBS-state.
+
+        Returns a flat dict with total_listed, median_ask, median_sde, median_multiple,
+        ask_low, ask_high — or {} if not found.
+        """
+        def _extract_benchmarks(blob: dict) -> dict:
+            if not isinstance(blob, dict) or "listedForSale" not in blob:
+                return {}
+            ask = blob.get("askingPriceBenchmarks") or {}
+            sde = blob.get("sdeBenchmarks") or {}
+            mult = blob.get("sdeMultipleBenchmarks") or {}
+            return {
+                "total_listed": blob.get("listedForSale"),
+                "median_ask": ask.get("median"),
+                "median_sde": sde.get("median"),
+                "median_multiple": mult.get("median"),
+                "ask_low": ask.get("lowerQuartile"),
+                "ask_high": ask.get("upperQuartile"),
+            }
+
+        # Look for a key containing IndustryDetails or MarketStats
+        for key in data:
+            lower = key.lower()
+            if any(s in lower for s in ("industrydetails", "marketstats", "bbsindustry")):
+                try:
+                    val = data[key].get("value", {})
+                    result = _extract_benchmarks(val)
+                    if result:
+                        return result
+                except (AttributeError, TypeError):
+                    continue
+
+        # Fallback: look inside the search results blob
+        for key in data:
+            if "BbsBfsSearchResults" in key:
+                try:
+                    result_val = data[key]["value"]["bfsSearchResult"]
+                    for sub_key in ("industryData", "benchmarks", "categoryData"):
+                        sub = result_val.get(sub_key) or {}
+                        result = _extract_benchmarks(sub)
+                        if result:
+                            return result
+                except (KeyError, TypeError, AttributeError):
+                    continue
+
+        return {}
+
+    @staticmethod
     def _find_listings_array(data: dict) -> Tuple[list, int]:
         """Find the listings array and total count in the BBS-state data.
 
@@ -360,6 +491,12 @@ class BizBuySellProvider(MarketplaceProvider):
         data = self._extract_bbs_state(driver)
         if data is None:
             return ([], 0)
+
+        # Extract market benchmark stats on first page only
+        if page == 1:
+            stats = self._find_market_stats(data)
+            if stats:
+                self._last_market_stats = stats
 
         raw_listings, total = self._find_listings_array(data)
         if not raw_listings:

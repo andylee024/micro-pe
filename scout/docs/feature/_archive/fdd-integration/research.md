@@ -1,1 +1,0 @@
-# fdd integration - Research
