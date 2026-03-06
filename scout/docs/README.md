@@ -1,11 +1,16 @@
 # Docs Guide
 
-This repo now keeps one active product narrative plus one active data-pipeline plan.
+This repo keeps a small set of active canonical docs plus focused implementation notes.
 
 ## Active Docs
 - `docs/prd.md` — canonical product requirements and roadmap.
 - `docs/architecture.md` — current codebase structure and runtime flow.
 - `docs/feature/v1-data-pipeline/plan.md` — canonical pipeline naming, workflow, and ETL design.
+- `docs/feature/v1-data-pipeline/bizbuysell-notes.md` — BizBuySell design decisions, live validation record, and cleanup plan.
+
+## Skills
+- `skills/query-source-routing/SKILL.md` — skill for deconstructing user market queries into Google Maps and BizBuySell source inputs.
+- `skills/query-source-routing/references/bizbuysell-slugs.md` — observed BizBuySell slug catalog used for source routing decisions.
 
 ## Archive Summaries
 - `docs/_archive/v0-listings-summary.md` — condensed record of early listings pipeline discovery.

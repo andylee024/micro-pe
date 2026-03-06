@@ -23,6 +23,14 @@ INDUSTRY_SLUG_MAP: Dict[str, str] = {
     "hvac": "hvac-businesses",
     "plumbing": "plumbing-businesses",
     "electrical": "electrical-and-mechanical-contracting-businesses",
+    # Fire protection listings are typically grouped under security categories.
+    "fire protection": "security-established-businesses",
+    "fire suppression": "security-established-businesses",
+    "fire sprinkler": "security-established-businesses",
+    "fire alarm": "security-established-businesses",
+    "security and fire alarm": "security-established-businesses",
+    "security services": "security-established-businesses",
+    "security": "security-established-businesses",
     "car wash": "car-washes",
     "landscaping": "landscaping-and-yard-service-businesses",
     "cleaning": "cleaning-businesses",
@@ -60,6 +68,41 @@ _STATE_ABBREV_TO_NAME: Dict[str, str] = {
 _STATE_NAME_TO_SLUG: Dict[str, str] = {
     v.replace("-", " "): v for v in _STATE_ABBREV_TO_NAME.values()
 }
+
+# Common city-only inputs used in NL queries.
+_CITY_TO_STATE_SLUG: Dict[str, str] = {
+    "los angeles": "california",
+    "san diego": "california",
+    "san jose": "california",
+    "san francisco": "california",
+    "sacramento": "california",
+    "new york": "new-york",
+    "houston": "texas",
+    "dallas": "texas",
+    "austin": "texas",
+    "san antonio": "texas",
+    "miami": "florida",
+    "orlando": "florida",
+    "tampa": "florida",
+    "chicago": "illinois",
+    "phoenix": "arizona",
+    "seattle": "washington",
+    "denver": "colorado",
+    "atlanta": "georgia",
+    "boston": "massachusetts",
+    "philadelphia": "pennsylvania",
+}
+
+FIRE_RELEVANCE_KEYWORDS: Tuple[str, ...] = (
+    "fire protection",
+    "fire alarm",
+    "fire sprinkler",
+    "sprinkler",
+    "fire suppression",
+    "suppression system",
+    "extinguisher",
+    "alarm system",
+)
 
 
 class BizBuySellProvider(MarketplaceProvider):
@@ -101,7 +144,8 @@ class BizBuySellProvider(MarketplaceProvider):
                 page += 1
                 time.sleep(random.uniform(*self._page_delay_range))
 
-            return all_listings[: query.max_results]
+            filtered = self._apply_query_relevance_filter(all_listings, query.industry)
+            return filtered[: query.max_results]
 
         finally:
             if driver:
@@ -114,11 +158,13 @@ class BizBuySellProvider(MarketplaceProvider):
         """Create a non-headless undetected-chromedriver instance."""
         import undetected_chromedriver as uc
 
-        opts = uc.ChromeOptions()
-        # NO --headless flag. Akamai blocks headless even with UC.
-        opts.add_argument("--window-size=1920,1080")
-        opts.add_argument("--no-sandbox")
-        opts.add_argument("--disable-dev-shm-usage")
+        def _chrome_options():
+            opts = uc.ChromeOptions()
+            # NO --headless flag. Akamai blocks headless even with UC.
+            opts.add_argument("--window-size=1920,1080")
+            opts.add_argument("--no-sandbox")
+            opts.add_argument("--disable-dev-shm-usage")
+            return opts
 
         local_major = self._detect_local_chrome_major()
         if local_major:
@@ -127,7 +173,11 @@ class BizBuySellProvider(MarketplaceProvider):
                 f"starting driver with version_main={local_major}"
             )
             try:
-                return uc.Chrome(options=opts, use_subprocess=True, version_main=local_major)
+                return uc.Chrome(
+                    options=_chrome_options(),
+                    use_subprocess=True,
+                    version_main=local_major,
+                )
             except Exception as exc:
                 self.logger.warning(
                     "Pinned driver startup failed for detected Chrome major "
@@ -135,7 +185,7 @@ class BizBuySellProvider(MarketplaceProvider):
                 )
 
         try:
-            return uc.Chrome(options=opts, use_subprocess=True)
+            return uc.Chrome(options=_chrome_options(), use_subprocess=True)
         except Exception as exc:
             extracted_major = self._extract_browser_major_from_driver_error(str(exc))
             if extracted_major and extracted_major != local_major:
@@ -144,7 +194,7 @@ class BizBuySellProvider(MarketplaceProvider):
                     f"{extracted_major}"
                 )
                 return uc.Chrome(
-                    options=opts,
+                    options=_chrome_options(),
                     use_subprocess=True,
                     version_main=extracted_major,
                 )
@@ -226,14 +276,61 @@ class BizBuySellProvider(MarketplaceProvider):
     @staticmethod
     def _to_industry_slug(industry: str) -> Optional[str]:
         """Map an industry string to a BizBuySell URL slug (case-insensitive)."""
-        key = industry.strip().lower()
+        key = BizBuySellProvider._normalize_industry(industry)
+        if not key:
+            return None
+
         if key in INDUSTRY_SLUG_MAP:
             return INDUSTRY_SLUG_MAP[key]
+
         # Try partial match
         for slug_key, slug_val in INDUSTRY_SLUG_MAP.items():
             if slug_key in key or key in slug_key:
                 return slug_val
         return None
+
+    @staticmethod
+    def _normalize_industry(industry: str) -> str:
+        """Normalize user-provided industry text for slug matching."""
+        key = str(industry or "").strip().lower()
+        key = re.sub(r"[,&/]+", " ", key)
+        key = re.sub(r"\b(business|businesses|company|companies)\b", " ", key)
+        return re.sub(r"\s+", " ", key).strip()
+
+    @classmethod
+    def _relevance_keywords(cls, industry: str) -> Tuple[str, ...]:
+        normalized = cls._normalize_industry(industry)
+        if "fire" in normalized or "sprinkler" in normalized or "suppression" in normalized:
+            return FIRE_RELEVANCE_KEYWORDS
+        return ()
+
+    def _apply_query_relevance_filter(self, listings: List[Listing], industry: str) -> List[Listing]:
+        keywords = self._relevance_keywords(industry)
+        if not listings or not keywords:
+            return listings
+
+        filtered: List[Listing] = []
+        for listing in listings:
+            text = f"{listing.name} {listing.description}".lower()
+            if any(keyword in text for keyword in keywords):
+                filtered.append(listing)
+
+        if filtered:
+            self.logger.info(
+                "Applied fire relevance filter for '%s': %d -> %d",
+                industry,
+                len(listings),
+                len(filtered),
+            )
+            return filtered
+
+        # Fallback to unfiltered data if no keyword hits are found.
+        self.logger.info(
+            "Fire relevance filter found no matches for '%s'; returning unfiltered batch (%d)",
+            industry,
+            len(listings),
+        )
+        return listings
 
     @staticmethod
     def _to_state_slug(location: str) -> Optional[str]:
@@ -244,7 +341,7 @@ class BizBuySellProvider(MarketplaceProvider):
         if not location:
             return None
 
-        loc = location.strip().lower()
+        loc = re.sub(r"\s+", " ", location.strip().lower())
 
         # Try as a 2-letter abbreviation
         if loc in _STATE_ABBREV_TO_NAME:
@@ -253,6 +350,10 @@ class BizBuySellProvider(MarketplaceProvider):
         # Try as a full state name
         if loc in _STATE_NAME_TO_SLUG:
             return _STATE_NAME_TO_SLUG[loc]
+
+        # Try exact city match
+        if loc in _CITY_TO_STATE_SLUG:
+            return _CITY_TO_STATE_SLUG[loc]
 
         # Try extracting state from "City, ST" pattern
         if "," in loc:
@@ -263,9 +364,18 @@ class BizBuySellProvider(MarketplaceProvider):
             if state_part in _STATE_NAME_TO_SLUG:
                 return _STATE_NAME_TO_SLUG[state_part]
 
+            city_part = parts[0].strip()
+            if city_part in _CITY_TO_STATE_SLUG:
+                return _CITY_TO_STATE_SLUG[city_part]
+
+        # Try matching city as a substring
+        for city, slug in _CITY_TO_STATE_SLUG.items():
+            if city in loc:
+                return slug
+
         # Try matching against state names as a substring
         for name, slug in _STATE_NAME_TO_SLUG.items():
-            if name == loc:
+            if name in loc:
                 return slug
 
         return None

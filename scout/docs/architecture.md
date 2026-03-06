@@ -1,7 +1,7 @@
 # Scout Architecture
 
 **Purpose:** Keep one simple, implementation-ready data pipeline architecture.
-**Last Updated:** 2026-03-02
+**Last Updated:** 2026-03-06
 
 ## Canonical Terms
 
@@ -41,6 +41,24 @@
                   [MarketDataset]
 ```
 
+## DataSource Roles
+
+1. `GoogleMapsDataSource` -> discovers operating businesses (`Business` records).
+2. `BizBuySellDataSource` -> discovers businesses-for-sale (`Listing` records).
+3. `RedditDataSource` -> optional sentiment signals.
+
+### BizBuySell Fit (Current)
+
+BizBuySell cleanly fits the current architecture as a provider-specific `DataSource` implementation:
+
+1. Query-to-route mapping (slug resolution) remains inside the BizBuySell provider.
+2. `Workflow` stays source-agnostic and only handles orchestration/persistence.
+3. Canonical `Listing` model stays shared across all listing sources.
+
+Reference notes:
+
+- `docs/feature/v1-data-pipeline/bizbuysell-notes.md`
+
 ## Code Layout
 
 ```text
@@ -68,3 +86,13 @@ scout/scout/pipeline/
 - Legacy terminal UI and UI-driven application layers were removed.
 - Pipeline runtime is now the primary internal architecture.
 - Existing source connectors remain under `data_sources/` and are wrapped by pipeline `DataSource` implementations.
+
+## Architecture Hygiene Rules
+
+To keep this simple, extensible, and robust:
+
+1. Keep provider-specific logic (slugs, anti-bot behavior, parsing quirks) inside provider/DataSource code.
+2. Keep `Workflow` generic: orchestration, fail-soft handling, and dataset assembly only.
+3. Persist raw payloads before normalization for replay/debug.
+4. Normalize into canonical models before writing to canonical tables.
+5. Treat each source as optional: partial dataset is valid when one source fails.

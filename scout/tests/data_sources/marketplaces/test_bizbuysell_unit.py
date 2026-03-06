@@ -8,9 +8,11 @@ from data_sources.marketplaces.base import ListingQuery
 from data_sources.marketplaces.bizbuysell import (
     INDUSTRY_SLUG_MAP,
     BizBuySellProvider,
+    _CITY_TO_STATE_SLUG,
     _STATE_ABBREV_TO_NAME,
     _STATE_NAME_TO_SLUG,
 )
+from scout.domain.listing import Listing
 
 
 @pytest.fixture
@@ -46,6 +48,12 @@ class TestBuildUrl:
         url = provider._build_url(ListingQuery("underwater basket weaving"), page=1)
         assert "service-businesses" in url
 
+    def test_fire_protection_los_angeles(self, provider):
+        url = provider._build_url(ListingQuery("fire protection", "Los Angeles"), page=1)
+        assert url == (
+            "https://www.bizbuysell.com/california/security-established-businesses-for-sale/"
+        )
+
 
 # --- Industry slug mapping ---
 
@@ -62,6 +70,18 @@ class TestIndustrySlug:
 
     def test_case_insensitive(self):
         assert BizBuySellProvider._to_industry_slug("HVAC") == "hvac-businesses"
+
+    def test_fire_protection(self):
+        assert (
+            BizBuySellProvider._to_industry_slug("fire protection")
+            == "security-established-businesses"
+        )
+
+    def test_fire_protection_businesses_phrase(self):
+        assert (
+            BizBuySellProvider._to_industry_slug("fire protection businesses")
+            == "security-established-businesses"
+        )
 
     def test_unknown_returns_none(self):
         assert BizBuySellProvider._to_industry_slug("zzz_no_match_zzz") is None
@@ -89,6 +109,9 @@ class TestStateSlug:
     def test_city_state_format(self):
         assert BizBuySellProvider._to_state_slug("Austin, TX") == "texas"
 
+    def test_city_name_only(self):
+        assert BizBuySellProvider._to_state_slug("Los Angeles") == "california"
+
     def test_california(self):
         assert BizBuySellProvider._to_state_slug("CA") == "california"
 
@@ -103,6 +126,58 @@ class TestStateSlug:
 
     def test_all_50_states(self):
         assert len(_STATE_ABBREV_TO_NAME) >= 50
+
+    def test_city_mapping_has_los_angeles(self):
+        assert _CITY_TO_STATE_SLUG["los angeles"] == "california"
+
+
+class TestRelevanceFilter:
+    def test_relevance_keywords_for_fire(self):
+        keywords = BizBuySellProvider._relevance_keywords("fire protection businesses")
+        assert "fire protection" in keywords
+
+    def test_relevance_keywords_for_non_fire_query(self):
+        assert BizBuySellProvider._relevance_keywords("hvac") == ()
+
+    def test_apply_query_relevance_filter_keeps_matches(self, provider):
+        listings = [
+            Listing(
+                source="bizbuysell",
+                source_id="1",
+                url="https://example.com/1",
+                name="Fire Alarm Installation Company",
+                industry="fire protection",
+                location="Los Angeles, CA",
+                description="Commercial fire suppression and alarm service",
+            ),
+            Listing(
+                source="bizbuysell",
+                source_id="2",
+                url="https://example.com/2",
+                name="Security Guard Routes",
+                industry="fire protection",
+                location="Los Angeles, CA",
+                description="Private patrol operation",
+            ),
+        ]
+        filtered = provider._apply_query_relevance_filter(listings, "fire protection")
+        assert len(filtered) == 1
+        assert filtered[0].source_id == "1"
+
+    def test_apply_query_relevance_filter_falls_back_when_no_hits(self, provider):
+        listings = [
+            Listing(
+                source="bizbuysell",
+                source_id="3",
+                url="https://example.com/3",
+                name="Security Monitoring Company",
+                industry="fire protection",
+                location="Los Angeles, CA",
+                description="Commercial alarm monitoring",
+            )
+        ]
+        filtered = provider._apply_query_relevance_filter(listings, "fire protection")
+        assert filtered == listings
 
 
 # --- Driver version helpers ---
