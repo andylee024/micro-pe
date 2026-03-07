@@ -7,6 +7,7 @@ This repo keeps a small set of active canonical docs plus focused implementation
 - `docs/architecture.md` — current codebase structure and runtime flow.
 - `docs/feature/v1-data-pipeline/plan.md` — canonical pipeline naming, workflow, and ETL design.
 - `docs/feature/v1-data-pipeline/bizbuysell-notes.md` — BizBuySell design decisions, live validation record, and cleanup plan.
+- `docs/feature/hex-ui-exploration/plan.md` — parent decomposition + review rubric for Hex-style UI concept work.
 
 ## Skills
 - `skills/query-source-routing/SKILL.md` — skill for deconstructing user market queries into Google Maps and BizBuySell source inputs.
