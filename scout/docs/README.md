@@ -10,6 +10,7 @@ This repo keeps a small set of active canonical docs plus focused implementation
 
 ## Feature Artifacts
 - `docs/feature/hex-ui-exploration/research-canvas-component-mockup.md` — A24-86 research canvas component mockup artifact.
+- `docs/feature/hex-ui-exploration/artifacts/README.md` — screenshot bundle of current Scout CLI product UI states.
 - `docs/feature/v2-ui-concepts/outreach-studio-component-mockup.md` — initial outreach studio component design for lead/campaign management.
 
 ## Skills
