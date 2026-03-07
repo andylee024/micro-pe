@@ -10,6 +10,7 @@ This repo keeps a small set of active canonical docs plus focused implementation
 
 ## Feature Artifacts
 - `docs/feature/hex-ui-exploration/research-canvas-component-mockup.md` — A24-86 research canvas component mockup artifact.
+- `docs/feature/v2-ui-concepts/outreach-studio-component-mockup.md` — initial outreach studio component design for lead/campaign management.
 
 ## Skills
 - `skills/query-source-routing/SKILL.md` — skill for deconstructing user market queries into Google Maps and BizBuySell source inputs.
