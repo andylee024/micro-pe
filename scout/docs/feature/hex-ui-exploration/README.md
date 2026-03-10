@@ -1,15 +1,15 @@
-# Hex UI Exploration
+# UI Exploration
 
-Concrete web UI artifacts for the Scout research and outreach workflow.
+Concrete web UI artifacts for a simpler, partner-friendly Scout product surface.
 
 ## Files
 
-- `web/index.html` — entry page linking both concepts.
-- `web/concept-a-thesis-canvas.html` — thesis canvas + evidence explorer surface for `A24-83`.
-- `web/concept-b-target-workbench.html` — target workbench + outreach studio surface for `A24-84`.
+- `web/index.html` — simple search / home screen.
+- `web/concept-a-thesis-canvas.html` — simplified results screen with businesses, listings, and details.
+- `web/concept-b-target-workbench.html` — saved-items review screen for partner discussion.
 - `artifacts/screenshots/` — rendered PNGs for PR review.
-- `a24-83-web-concept.md` — interaction notes, model mapping, and tradeoffs for concept A.
-- `a24-84-web-concept.md` — interaction notes, writeback boundaries, and tradeoffs for concept B.
+- `a24-83-web-concept.md` — notes for the simple search + results flow.
+- `a24-84-web-concept.md` — notes for the saved-items review flow.
 
 ## Source Data
 
@@ -26,8 +26,13 @@ From `scout/`:
 ./scripts/render_ui_exploration_screenshots.sh
 ```
 
-## Review Intent
+## Design Direction
 
-The previous UI PR evidence only showed CLI screenshots. These artifacts replace that with actual
-web-product-style surfaces so `A24-83` and `A24-84` can be reviewed against what the tasks
-described.
+This version deliberately steps away from the busier notebook-style concept. The focus is:
+
+1. one search box
+2. one results page with two simple lists
+3. one saved-items page for partner review
+
+The intent is to preserve the clarity of the old TUI while making the product accessible to
+non-technical teammates.

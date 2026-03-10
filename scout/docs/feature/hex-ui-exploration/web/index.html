@@ -3,79 +3,101 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scout UI Exploration</title>
+    <title>Scout - Simple Web Concept</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body class="landing">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">Scout</div>
-        <div class="brand-meta">web concept artifacts / A24-83 + A24-84</div>
-      </div>
-      <div class="query-pill">
-        Real sample dataset: fire protection services businesses in Los Angeles
-        <span class="row-secondary">sources: Google Maps + BizBuySell / run e6f9fd974664</span>
-      </div>
-      <div class="toolbar">
-        <span class="chip active">Hex-style</span>
-        <span class="chip">Research</span>
-        <span class="chip">Outreach</span>
-      </div>
-    </header>
+  <body>
+    <main class="page">
+      <header class="site-header">
+        <div class="brand">
+          <div class="brand-mark">Scout</div>
+          <div class="brand-note">Simple research workspace for non-technical partners</div>
+        </div>
+        <a class="ghost-link" href="./concept-a-thesis-canvas.html">Open sample results</a>
+      </header>
 
-    <main class="shell landing-shell">
-      <section class="landing-hero">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="panel-label">Purpose</div>
-              <h1 class="launch-title">Two concrete web surfaces for Scout’s research and outreach loop.</h1>
-            </div>
-            <span class="status-pill live">Rendered from static HTML</span>
-          </div>
-          <p class="big-statement">
-            The goal is not a final app shell. The goal is a reviewable product direction with
-            concrete layout, actual data, and screenshot artifacts that belong in PR review.
+      <section class="hero">
+        <div class="card">
+          <div class="eyebrow">Search</div>
+          <h1 class="hero-title">Find operating businesses and businesses-for-sale in one readable place.</h1>
+          <p class="hero-copy">
+            The UI should feel closer to a clean search product than an analyst workstation. Type a
+            market in plain English, review the Google Maps leads, review the BizBuySell listings,
+            and decide what deserves follow-up.
           </p>
-          <div class="footnote">
-            Sample records are drawn from
-            <code>outputs/pipeline/raw/e6f9fd974664/google_maps.json</code> and
-            <code>outputs/pipeline/raw/e6f9fd974664/bizbuysell.json</code>.
+
+          <div class="input-row">
+            <div class="search-input">fire protection businesses in Los Angeles</div>
+            <a class="button" href="./concept-a-thesis-canvas.html">Search</a>
           </div>
+
+          <div class="chip-row">
+            <span class="chip">HVAC in Houston</span>
+            <span class="chip">Car wash in Dallas</span>
+            <span class="chip">Plumbing in Phoenix</span>
+          </div>
+
+          <p class="footer-note">
+            This concept is intentionally minimal: no notebook, no complex scoring, no exposed
+            pipeline mechanics.
+          </p>
         </div>
 
-        <div class="launch-grid">
-          <article class="launch-card">
-            <div class="panel-label">Concept A</div>
-            <h2 class="launch-title">Thesis Canvas + Evidence Explorer</h2>
-            <p class="launch-meta">
-              A notebook-style research surface for shaping a thesis, saving lenses, slicing the
-              universe, and inspecting source provenance without leaving the page.
-            </p>
-            <div class="chip-row">
-              <span class="tag">Thesis inputs</span>
-              <span class="tag">Evidence table</span>
-              <span class="tag">Source inspector</span>
-            </div>
-            <p class="footnote">Maps directly to <code>Query</code>, <code>Business</code>, and <code>MarketDataset</code>.</p>
-            <a class="launch-link" href="./concept-a-thesis-canvas.html">Open concept A</a>
-          </article>
+        <div class="card">
+          <div class="eyebrow">What the results screen returns</div>
+          <h2 class="section-title">Two simple datasets</h2>
+          <ul class="preview-list">
+            <li class="preview-row">
+              <div class="preview-main">
+                <p class="preview-title">Businesses from Google Maps</p>
+                <p class="row-secondary">Operating companies with location, phone, website, rating, and reviews.</p>
+              </div>
+              <div class="preview-value">10 found</div>
+            </li>
+            <li class="preview-row">
+              <div class="preview-main">
+                <p class="preview-title">Listings from BizBuySell</p>
+                <p class="row-secondary">Businesses currently listed for sale in the same market.</p>
+              </div>
+              <div class="preview-value">1 found</div>
+            </li>
+            <li class="preview-row">
+              <div class="preview-main">
+                <p class="preview-title">Details panel</p>
+                <p class="row-secondary">Click a row to see the full address, website, phone, price, and notes.</p>
+              </div>
+              <div class="preview-value">Always visible</div>
+            </li>
+          </ul>
+        </div>
+      </section>
 
-          <article class="launch-card">
-            <div class="panel-label">Concept B</div>
-            <h2 class="launch-title">Target Workbench + Outreach Studio</h2>
-            <p class="launch-meta">
-              A fluid workspace for shortlisting, comparing, and drafting first-touch outreach from
-              evidence that already exists in the pipeline.
-            </p>
-            <div class="chip-row">
-              <span class="tag">Shortlist</span>
-              <span class="tag">Compare grid</span>
-              <span class="tag">Outreach queue</span>
-            </div>
-            <p class="footnote">Maps directly to <code>Business</code>, <code>Listing</code>, and future writebacks.</p>
-            <a class="launch-link" href="./concept-b-target-workbench.html">Open concept B</a>
-          </article>
+      <section class="section-grid">
+        <div class="section-card">
+          <div class="eyebrow">Solve for clarity</div>
+          <h2 class="section-title">Anyone should understand the page in seconds.</h2>
+          <p class="section-copy">
+            The right mental model is simple: businesses on one side, listings on the other, details
+            below.
+          </p>
+        </div>
+
+        <div class="section-card">
+          <div class="eyebrow">Solve for teamwork</div>
+          <h2 class="section-title">Review together without explaining the system.</h2>
+          <p class="section-copy">
+            Partners should not need to know what a runner, workflow, or data source is in order to
+            use the product.
+          </p>
+        </div>
+
+        <div class="section-card">
+          <div class="eyebrow">Solve for action</div>
+          <h2 class="section-title">Save what matters and move on.</h2>
+          <p class="section-copy">
+            Once something looks promising, the next step is straightforward: save it, export it,
+            share it, or start outreach.
+          </p>
         </div>
       </section>
     </main>
