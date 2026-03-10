@@ -34,6 +34,7 @@ The repo root now includes:
 
 - `vercel.json` — routes `/`, `/results`, `/saved`, and supporting assets into the UI mock.
 - `.vercelignore` — excludes large local-only directories from deploy upload.
+- `../vercel.json` and `../.vercelignore` equivalents under `scout/` — support Vercel projects that use `scout/` as the Root Directory.
 
 This lets the repo deploy from the repository root without changing Vercel's Root Directory.
 

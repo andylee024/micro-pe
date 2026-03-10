@@ -1,0 +1,41 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/docs/feature/hex-ui-exploration/web/index.html"
+    },
+    {
+      "source": "/index.html",
+      "destination": "/docs/feature/hex-ui-exploration/web/index.html"
+    },
+    {
+      "source": "/results",
+      "destination": "/docs/feature/hex-ui-exploration/web/concept-a-thesis-canvas.html"
+    },
+    {
+      "source": "/concept-a-thesis-canvas.html",
+      "destination": "/docs/feature/hex-ui-exploration/web/concept-a-thesis-canvas.html"
+    },
+    {
+      "source": "/saved",
+      "destination": "/docs/feature/hex-ui-exploration/web/concept-b-target-workbench.html"
+    },
+    {
+      "source": "/concept-b-target-workbench.html",
+      "destination": "/docs/feature/hex-ui-exploration/web/concept-b-target-workbench.html"
+    },
+    {
+      "source": "/styles.css",
+      "destination": "/docs/feature/hex-ui-exploration/web/styles.css"
+    },
+    {
+      "source": "/app.js",
+      "destination": "/docs/feature/hex-ui-exploration/web/app.js"
+    },
+    {
+      "source": "/data/:path*",
+      "destination": "/docs/feature/hex-ui-exploration/web/data/:path*"
+    }
+  ]
+}
