@@ -8,6 +8,9 @@ This repo keeps a small set of active canonical docs plus focused implementation
 - `docs/feature/v1-data-pipeline/plan.md` — canonical pipeline naming, workflow, and ETL design.
 - `docs/feature/v1-data-pipeline/bizbuysell-notes.md` — BizBuySell design decisions, live validation record, and cleanup plan.
 
+## Feature Artifacts
+- `docs/feature/hex-ui-exploration/README.md` — concrete web UI concept artifacts and screenshot render workflow for `A24-83` and `A24-84`.
+
 ## Skills
 - `skills/query-source-routing/SKILL.md` — skill for deconstructing user market queries into Google Maps and BizBuySell source inputs.
 - `skills/query-source-routing/references/bizbuysell-slugs.md` — observed BizBuySell slug catalog used for source routing decisions.
