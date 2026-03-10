@@ -1,0 +1,118 @@
+{
+  "query": "fire protection businesses in Los Angeles",
+  "run_id": "e6f9fd974664",
+  "industry": "fire protection",
+  "location": "Los Angeles",
+  "businesses": [
+    {
+      "name": "FPLA - Fire Protection Los Angeles",
+      "city": "West Hollywood",
+      "address": "660 N Sweetzer Ave, West Hollywood, CA 90048, USA",
+      "phone": "(323) 709-7372",
+      "website": "https://fire-protection-los-angeles.com/",
+      "rating": 5.0,
+      "reviews": 18
+    },
+    {
+      "name": "CITY OF ANGELS FIRE PROTECTION",
+      "city": "Los Angeles",
+      "address": "4284 Union Pacific Ave, Los Angeles, CA 90023, USA",
+      "phone": "(213) 725-3125",
+      "website": "https://www.cityofangelsfire.com/",
+      "rating": 4.9,
+      "reviews": 406
+    },
+    {
+      "name": "Black Bird Fire Protection, Inc.",
+      "city": "Brea",
+      "address": "471 Atlas St, Brea, CA 92821, USA",
+      "phone": "(714) 462-6095",
+      "website": "http://www.blackbirdfire.com/",
+      "rating": 4.9,
+      "reviews": 408
+    },
+    {
+      "name": "S.O.S Fire Services - Fire Protection Services",
+      "city": "Tarzana",
+      "address": "6154 Aura Ave, Tarzana, CA 91335, USA",
+      "phone": "(877) 256-0161",
+      "website": "http://www.sosfireservices.com/",
+      "rating": 5.0,
+      "reviews": 30
+    },
+    {
+      "name": "Reliable Fire Protection",
+      "city": "Los Angeles",
+      "address": "526 Main St, Los Angeles, CA 90013, USA",
+      "phone": "(310) 620-1975",
+      "website": "https://lafiresysteminspections.com/",
+      "rating": 5.0,
+      "reviews": 30
+    },
+    {
+      "name": "FireProTech",
+      "city": "Glendale",
+      "address": "6056 San Fernando Rd, Glendale, CA 91202, USA",
+      "phone": "(818) 699-0196",
+      "website": "https://fire-pro.tech/",
+      "rating": 4.8,
+      "reviews": 194
+    },
+    {
+      "name": "Sure Fire Protection",
+      "city": "Los Angeles",
+      "address": "6402 Maryland Dr, Los Angeles, CA 90048, USA",
+      "phone": "(877) 347-3660",
+      "website": "https://surefireprevention.com/",
+      "rating": 5.0,
+      "reviews": 14
+    },
+    {
+      "name": "U.S. Fire Protection",
+      "city": "Sun Valley",
+      "address": "11589 Tuxford St UNIT 1, Sun Valley, CA 91352, USA",
+      "phone": "(866) 410-9580",
+      "website": "https://www.usfireprotectioninc.com/",
+      "rating": 5.0,
+      "reviews": 11
+    },
+    {
+      "name": "Fire Protection Group Inc.",
+      "city": "Los Angeles",
+      "address": "3712 W Jefferson Blvd, Los Angeles, CA 90016, USA",
+      "phone": "(888) 994-2882",
+      "website": "http://firesprinkler.com/",
+      "rating": 4.2,
+      "reviews": 10
+    },
+    {
+      "name": "L A Fire Protection Inc",
+      "city": "Burbank",
+      "address": "7817 Shadyspring Dr, Burbank, CA 91504, USA",
+      "phone": "(818) 252-5922",
+      "website": "https://lafirepro.com/",
+      "rating": 5.0,
+      "reviews": 2
+    }
+  ],
+  "listings": [
+    {
+      "source_id": "2475706",
+      "name": "Fire Inspection Business w/ State and multiple City licenses",
+      "location": "Los Angeles, CA",
+      "asking_price": 1800000.0,
+      "cash_flow": 625000.0,
+      "asking_multiple": 2.88,
+      "url": "https://www.bizbuysell.com/business-opportunity/fire-inspection-business-w-state-and-multiple-city-licenses/2475706/",
+      "description": "Incredible opportunity to own an established Fire Inspection Licensed Business."
+    }
+  ],
+  "saved_business_names": [
+    "CITY OF ANGELS FIRE PROTECTION",
+    "FireProTech",
+    "Reliable Fire Protection"
+  ],
+  "saved_listing_ids": [
+    "2475706"
+  ]
+}

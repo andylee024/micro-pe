@@ -3,46 +3,30 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scout - Saved Items</title>
+    <title>Scout Saved</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body data-page="saved">
     <main class="page">
       <header class="site-header">
-        <div class="brand">
-          <div class="brand-mark">Scout</div>
-          <div class="brand-note">Saved items / simple partner review view</div>
-        </div>
-        <div class="chip-row">
-          <a class="ghost-link" href="./index.html">Home</a>
-          <a class="ghost-link" href="./concept-a-thesis-canvas.html">Results</a>
-        </div>
+        <div class="brand-mark">Scout</div>
+        <nav class="nav">
+          <a href="./index.html">Search</a>
+          <a href="./concept-a-thesis-canvas.html">Results</a>
+          <a class="active" href="./concept-b-target-workbench.html">Saved</a>
+        </nav>
       </header>
 
-      <section class="query-card">
-        <div class="saved-bar">
-          <div>
-            <div class="eyebrow">Saved review</div>
-            <h1 class="section-title">A small list of leads and listings worth discussing</h1>
-            <p class="detail-copy">
-              This page is for partner review, not for exploration. It should surface only the few
-              rows the team thought were worth saving.
-            </p>
-          </div>
-          <div class="saved-summary">
-            <span class="count">3 saved businesses</span>
-            <span class="count">1 saved listing</span>
-          </div>
-        </div>
+      <section class="section">
+        <h1 class="query-title">Saved items</h1>
+        <p class="summary-line" id="saved-summary">A short list for partner review. Keep only what deserves discussion.</p>
       </section>
 
-      <section class="saved-grid">
-        <section class="list-card">
-          <div class="list-head">
-            <div>
-              <div class="eyebrow">Saved businesses</div>
-              <h2 class="list-title">Leads to review</h2>
-            </div>
+      <section class="split" style="margin-top: 20px">
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Businesses</h2>
+            <p class="table-note">3 saved</p>
           </div>
 
           <div class="table-wrap">
@@ -54,42 +38,15 @@
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <span class="row-primary">CITY OF ANGELS FIRE PROTECTION</span>
-                    <span class="row-secondary">Los Angeles · 406 reviews · website + phone</span>
-                  </td>
-                  <td>Best local footprint in this run</td>
-                  <td><span class="status ready">Ready to discuss</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="row-primary">FireProTech</span>
-                    <span class="row-secondary">Glendale · 194 reviews · website + phone</span>
-                  </td>
-                  <td>Strong digital presence, adjacent geography</td>
-                  <td><span class="status default">Keep researching</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="row-primary">Reliable Fire Protection</span>
-                    <span class="row-secondary">Los Angeles · 30 reviews · website + phone</span>
-                  </td>
-                  <td>Smaller footprint but local and easy to reach</td>
-                  <td><span class="status review">Needs another pass</span></td>
-                </tr>
-              </tbody>
+              <tbody id="saved-business-table-body"></tbody>
             </table>
           </div>
         </section>
 
-        <section class="list-card">
-          <div class="list-head">
-            <div>
-              <div class="eyebrow">Saved listings</div>
-              <h2 class="list-title">For-sale context</h2>
-            </div>
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Listings</h2>
+            <p class="table-note">1 saved</p>
           </div>
 
           <div class="table-wrap">
@@ -97,51 +54,39 @@
               <thead>
                 <tr>
                   <th>Listing</th>
-                  <th>Asking price</th>
-                  <th>Status</th>
+                  <th>Price</th>
+                  <th>Use</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <span class="row-primary">Fire Inspection Business w/ State and multiple City licenses</span>
-                    <span class="row-secondary">Los Angeles · cash flow $625,000 · multiple 2.88x</span>
-                  </td>
-                  <td>$1.8M</td>
-                  <td><span class="status ready">Keep as market comp</span></td>
-                </tr>
-              </tbody>
+              <tbody id="saved-listing-table-body"></tbody>
             </table>
           </div>
 
-          <div class="empty-state">
-            Listings do not need to be directly matched to a lead to be useful. They can simply help
-            the team understand what is currently for sale in the market.
-          </div>
+          <p class="empty-state">
+            Listings can stay here simply as market context. They do not need to be matched to a
+            business to be useful.
+          </p>
         </section>
       </section>
 
-      <section class="note-grid">
-        <section class="note-card">
-          <div class="eyebrow">Partner notes</div>
-          <h2 class="note-title">What this screen should help a meeting do</h2>
-          <ul class="bullet-list">
-            <li>Review a short list of promising businesses without re-running a search.</li>
-            <li>Agree on which businesses deserve outreach or deeper diligence.</li>
-            <li>Keep market-for-sale context nearby without cluttering the main results screen.</li>
+      <section class="notes" style="margin-top: 20px">
+        <section class="note">
+          <h2 class="note-title">What this page is for</h2>
+          <ul>
+            <li>Review a short list without rerunning a search.</li>
+            <li>Decide what needs follow-up.</li>
+            <li>Keep for-sale context nearby.</li>
           </ul>
         </section>
 
-        <section class="note-card">
-          <div class="eyebrow">Next actions</div>
-          <h2 class="note-title">Simple follow-up flow</h2>
-          <ul class="bullet-list">
-            <li>Export the saved businesses list.</li>
-            <li>Verify owner and contact paths outside Scout.</li>
-            <li>Return to the results screen if the team wants to save additional rows.</li>
-          </ul>
+        <section class="note">
+          <h2 class="note-title">Next action</h2>
+          <p class="summary-line">
+            Export the saved businesses list and confirm contact paths outside Scout.
+          </p>
         </section>
       </section>
     </main>
+    <script src="./app.js"></script>
   </body>
 </html>

@@ -3,103 +3,56 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scout - Simple Web Concept</title>
+    <title>Scout</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body data-page="home">
     <main class="page">
       <header class="site-header">
-        <div class="brand">
-          <div class="brand-mark">Scout</div>
-          <div class="brand-note">Simple research workspace for non-technical partners</div>
-        </div>
-        <a class="ghost-link" href="./concept-a-thesis-canvas.html">Open sample results</a>
+        <div class="brand-mark">Scout</div>
+        <nav class="nav">
+          <a class="active" href="./index.html">Search</a>
+          <a href="./concept-a-thesis-canvas.html">Results</a>
+          <a href="./concept-b-target-workbench.html">Saved</a>
+        </nav>
       </header>
 
       <section class="hero">
-        <div class="card">
-          <div class="eyebrow">Search</div>
-          <h1 class="hero-title">Find operating businesses and businesses-for-sale in one readable place.</h1>
-          <p class="hero-copy">
-            The UI should feel closer to a clean search product than an analyst workstation. Type a
-            market in plain English, review the Google Maps leads, review the BizBuySell listings,
-            and decide what deserves follow-up.
+        <section class="panel">
+          <p class="meta-line">Simple market search for operators and businesses for sale.</p>
+          <h1 class="page-title">Find businesses in a market.</h1>
+          <p class="summary-line">
+            Type a market in plain English. Scout returns businesses from Google Maps and listings
+            from BizBuySell in one simple view.
           </p>
 
-          <div class="input-row">
-            <div class="search-input">fire protection businesses in Los Angeles</div>
+          <div class="search-row">
+            <div class="search-input" id="home-query">fire protection businesses in Los Angeles</div>
             <a class="button" href="./concept-a-thesis-canvas.html">Search</a>
           </div>
 
-          <div class="chip-row">
-            <span class="chip">HVAC in Houston</span>
-            <span class="chip">Car wash in Dallas</span>
-            <span class="chip">Plumbing in Phoenix</span>
+          <div class="examples">
+            <span>HVAC in Houston</span>
+            <span>Car wash in Dallas</span>
+            <span>Plumbing in Phoenix</span>
           </div>
+        </section>
 
-          <p class="footer-note">
-            This concept is intentionally minimal: no notebook, no complex scoring, no exposed
-            pipeline mechanics.
+        <section class="panel">
+          <p class="meta-line">What the page should do</p>
+          <h2 class="section-title">Keep the layout obvious.</h2>
+          <p class="summary-line">
+            Businesses on one side. Listings on the other. Details below. The design should stay
+            quiet so only useful information stands out.
           </p>
-        </div>
-
-        <div class="card">
-          <div class="eyebrow">What the results screen returns</div>
-          <h2 class="section-title">Two simple datasets</h2>
-          <ul class="preview-list">
-            <li class="preview-row">
-              <div class="preview-main">
-                <p class="preview-title">Businesses from Google Maps</p>
-                <p class="row-secondary">Operating companies with location, phone, website, rating, and reviews.</p>
-              </div>
-              <div class="preview-value">10 found</div>
-            </li>
-            <li class="preview-row">
-              <div class="preview-main">
-                <p class="preview-title">Listings from BizBuySell</p>
-                <p class="row-secondary">Businesses currently listed for sale in the same market.</p>
-              </div>
-              <div class="preview-value">1 found</div>
-            </li>
-            <li class="preview-row">
-              <div class="preview-main">
-                <p class="preview-title">Details panel</p>
-                <p class="row-secondary">Click a row to see the full address, website, phone, price, and notes.</p>
-              </div>
-              <div class="preview-value">Always visible</div>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="section-grid">
-        <div class="section-card">
-          <div class="eyebrow">Solve for clarity</div>
-          <h2 class="section-title">Anyone should understand the page in seconds.</h2>
-          <p class="section-copy">
-            The right mental model is simple: businesses on one side, listings on the other, details
-            below.
-          </p>
-        </div>
-
-        <div class="section-card">
-          <div class="eyebrow">Solve for teamwork</div>
-          <h2 class="section-title">Review together without explaining the system.</h2>
-          <p class="section-copy">
-            Partners should not need to know what a runner, workflow, or data source is in order to
-            use the product.
-          </p>
-        </div>
-
-        <div class="section-card">
-          <div class="eyebrow">Solve for action</div>
-          <h2 class="section-title">Save what matters and move on.</h2>
-          <p class="section-copy">
-            Once something looks promising, the next step is straightforward: save it, export it,
-            share it, or start outreach.
-          </p>
-        </div>
+          <div class="tags" style="margin-top: 18px">
+            <span id="home-business-count">10 businesses</span>
+            <span class="attention" id="home-listing-count">1 listing for sale</span>
+            <span>details on click</span>
+          </div>
+        </section>
       </section>
     </main>
+    <script src="./app.js"></script>
   </body>
 </html>

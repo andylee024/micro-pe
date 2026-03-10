@@ -16,6 +16,8 @@ htmlcov/
 # Project-specific data (generated)
 cache/
 data/
+!docs/feature/hex-ui-exploration/web/data/
+!docs/feature/hex-ui-exploration/web/data/*.json
 outputs/*
 !outputs/.gitkeep
 

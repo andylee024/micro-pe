@@ -7,6 +7,8 @@ Concrete web UI artifacts for a simpler, partner-friendly Scout product surface.
 - `web/index.html` — simple search / home screen.
 - `web/concept-a-thesis-canvas.html` — simplified results screen with businesses, listings, and details.
 - `web/concept-b-target-workbench.html` — saved-items review screen for partner discussion.
+- `web/app.js` — client-side renderer for the sample dataset.
+- `web/data/fire-protection-los-angeles.json` — real Scout snapshot used by the UI.
 - `artifacts/screenshots/` — rendered PNGs for PR review.
 - `a24-83-web-concept.md` — notes for the simple search + results flow.
 - `a24-84-web-concept.md` — notes for the saved-items review flow.
@@ -25,6 +27,15 @@ From `scout/`:
 ```bash
 ./scripts/render_ui_exploration_screenshots.sh
 ```
+
+## Vercel
+
+The repo root now includes:
+
+- `vercel.json` — routes `/`, `/results`, `/saved`, and supporting assets into the UI mock.
+- `.vercelignore` — excludes large local-only directories from deploy upload.
+
+This lets the repo deploy from the repository root without changing Vercel's Root Directory.
 
 ## Design Direction
 

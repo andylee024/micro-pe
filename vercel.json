@@ -1,0 +1,41 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/index.html"
+    },
+    {
+      "source": "/index.html",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/index.html"
+    },
+    {
+      "source": "/results",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/concept-a-thesis-canvas.html"
+    },
+    {
+      "source": "/concept-a-thesis-canvas.html",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/concept-a-thesis-canvas.html"
+    },
+    {
+      "source": "/saved",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/concept-b-target-workbench.html"
+    },
+    {
+      "source": "/concept-b-target-workbench.html",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/concept-b-target-workbench.html"
+    },
+    {
+      "source": "/styles.css",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/styles.css"
+    },
+    {
+      "source": "/app.js",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/app.js"
+    },
+    {
+      "source": "/data/:path*",
+      "destination": "/scout/docs/feature/hex-ui-exploration/web/data/:path*"
+    }
+  ]
+}

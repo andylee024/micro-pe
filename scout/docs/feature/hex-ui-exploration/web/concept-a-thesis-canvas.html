@@ -3,54 +3,41 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scout - Results Screen</title>
+    <title>Scout Results</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body data-page="results">
     <main class="page">
       <header class="site-header">
-        <div class="brand">
-          <div class="brand-mark">Scout</div>
-          <div class="brand-note">Results screen / businesses + listings + details</div>
-        </div>
-        <div class="chip-row">
-          <a class="ghost-link" href="./index.html">Home</a>
-          <a class="ghost-link" href="./concept-b-target-workbench.html">Saved items</a>
-        </div>
+        <div class="brand-mark">Scout</div>
+        <nav class="nav">
+          <a href="./index.html">Search</a>
+          <a class="active" href="./concept-a-thesis-canvas.html">Results</a>
+          <a href="./concept-b-target-workbench.html">Saved</a>
+        </nav>
       </header>
 
-      <section class="query-card">
-        <div class="query-bar">
+      <section class="section">
+        <div class="query-header">
           <div>
-            <div class="eyebrow">Query</div>
-            <h1 class="section-title">fire protection businesses in Los Angeles</h1>
-            <p class="detail-copy">
-              This page keeps the two core Scout datasets side by side so non-technical partners can
-              scan quickly and click for details.
+            <h1 class="query-title" id="results-query">fire protection businesses in Los Angeles</h1>
+            <p class="summary-line" id="results-description">
+              Google Maps businesses and BizBuySell listings for the same market.
             </p>
           </div>
-          <div class="chip-row">
-            <span class="chip">Search again</span>
-            <span class="chip">Export CSV</span>
-            <span class="chip">Save interesting rows</span>
+          <div class="actions">
+            <span>Save</span>
+            <span>Export CSV</span>
           </div>
         </div>
-
-        <div class="counts">
-          <span class="count">10 Google Maps businesses</span>
-          <span class="count">1 BizBuySell listing</span>
-          <span class="count">Run e6f9fd974664</span>
-        </div>
+        <p class="summary-line" id="results-summary">10 businesses. 1 listing for sale.</p>
       </section>
 
-      <section class="two-column">
-        <section class="list-card">
-          <div class="list-head">
-            <div>
-              <div class="eyebrow">Businesses</div>
-              <h2 class="list-title">Google Maps leads</h2>
-            </div>
-            <span class="chip">Sorted by reviews</span>
+      <section class="split" style="margin-top: 20px">
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Businesses</h2>
+            <p class="table-note">Google Maps</p>
           </div>
 
           <div class="table-wrap">
@@ -60,67 +47,18 @@
                   <th>Business</th>
                   <th>City</th>
                   <th>Reviews</th>
-                  <th>Contact</th>
+                  <th>Phone</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr class="selected">
-                  <td>
-                    <span class="row-primary">CITY OF ANGELS FIRE PROTECTION</span>
-                    <span class="row-secondary">4.9★ rating</span>
-                  </td>
-                  <td>Los Angeles</td>
-                  <td>406</td>
-                  <td><span class="pill">website + phone</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="row-primary">Black Bird Fire Protection, Inc.</span>
-                    <span class="row-secondary">4.9★ rating</span>
-                  </td>
-                  <td>Brea</td>
-                  <td>408</td>
-                  <td><span class="pill">website + phone</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="row-primary">FireProTech</span>
-                    <span class="row-secondary">4.8★ rating</span>
-                  </td>
-                  <td>Glendale</td>
-                  <td>194</td>
-                  <td><span class="pill">website + phone</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="row-primary">Reliable Fire Protection</span>
-                    <span class="row-secondary">5.0★ rating</span>
-                  </td>
-                  <td>Los Angeles</td>
-                  <td>30</td>
-                  <td><span class="pill">website + phone</span></td>
-                </tr>
-                <tr>
-                  <td>
-                    <span class="row-primary">S.O.S Fire Services</span>
-                    <span class="row-secondary">5.0★ rating</span>
-                  </td>
-                  <td>Tarzana</td>
-                  <td>30</td>
-                  <td><span class="pill">website + phone</span></td>
-                </tr>
-              </tbody>
+              <tbody id="business-table-body"></tbody>
             </table>
           </div>
         </section>
 
-        <section class="list-card">
-          <div class="list-head">
-            <div>
-              <div class="eyebrow">Listings</div>
-              <h2 class="list-title">BizBuySell</h2>
-            </div>
-            <span class="chip">Current market inventory</span>
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Listings</h2>
+            <p class="table-note">BizBuySell</p>
           </div>
 
           <div class="table-wrap">
@@ -129,74 +67,56 @@
                 <tr>
                   <th>Listing</th>
                   <th>Location</th>
-                  <th>Asking price</th>
+                  <th>Price</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr class="selected">
-                  <td>
-                    <span class="row-primary">Fire Inspection Business w/ State and multiple City licenses</span>
-                    <span class="row-secondary">cash flow $625,000</span>
-                  </td>
-                  <td>Los Angeles</td>
-                  <td>$1.8M</td>
-                </tr>
-              </tbody>
+              <tbody id="listing-table-body"></tbody>
             </table>
           </div>
 
-          <div class="empty-state">
-            Only one matching listing was found for this query. That is useful context by itself and
-            should be shown honestly rather than padded with noise.
-          </div>
+          <p class="empty-state" id="listing-empty"></p>
         </section>
       </section>
 
-      <section class="detail-card">
-        <div class="list-head">
-          <div>
-            <div class="eyebrow">Details</div>
-            <h2 class="detail-title">Selected lead and selected listing</h2>
-          </div>
-          <div class="chip-row">
-            <span class="chip">Save business</span>
-            <span class="chip">Copy phone</span>
-            <span class="chip">Open listing</span>
-          </div>
+      <section class="section" style="margin-top: 20px">
+        <div class="section-head">
+          <h2 class="section-title">Details</h2>
+          <p class="table-note">Selected business and listing</p>
         </div>
 
         <div class="detail-grid">
-          <div class="detail-block">
-            <div class="small-label">Lead detail</div>
-            <h3>CITY OF ANGELS FIRE PROTECTION</h3>
-            <div class="kv-list">
-              <div class="kv"><span>Address</span><strong>4284 Union Pacific Ave, Los Angeles, CA</strong></div>
-              <div class="kv"><span>Phone</span><strong>(213) 725-3125</strong></div>
-              <div class="kv"><span>Website</span><strong>cityofangelsfire.com</strong></div>
-              <div class="kv"><span>Reviews</span><strong>406</strong></div>
+          <section class="detail-section">
+            <h3 class="detail-title" id="detail-business-name">CITY OF ANGELS FIRE PROTECTION</h3>
+            <div class="detail-kv">
+              <div>Address</div>
+              <strong id="detail-business-address">4284 Union Pacific Ave, Los Angeles, CA</strong>
+              <div>Phone</div>
+              <strong id="detail-business-phone">(213) 725-3125</strong>
+              <div>Website</div>
+              <strong id="detail-business-website">cityofangelsfire.com</strong>
+              <div>Reviews</div>
+              <strong id="detail-business-reviews">406</strong>
             </div>
-            <p class="footer-note">
-              Strong local lead because the business is in the target market and already has enough
-              public proof to justify deeper diligence.
-            </p>
-          </div>
+            <p class="footer-copy" id="detail-business-copy">Strong local lead with enough public proof to justify deeper diligence.</p>
+          </section>
 
-          <div class="detail-block">
-            <div class="small-label">Listing detail</div>
-            <h3>Fire Inspection Business w/ State and multiple City licenses</h3>
-            <div class="kv-list">
-              <div class="kv"><span>Location</span><strong>Los Angeles, CA</strong></div>
-              <div class="kv"><span>Asking price</span><strong>$1,800,000</strong></div>
-              <div class="kv"><span>Cash flow</span><strong>$625,000</strong></div>
-              <div class="kv"><span>Multiple</span><strong>2.88x</strong></div>
+          <section class="detail-section">
+            <h3 class="detail-title" id="detail-listing-name">Fire Inspection Business w/ State and multiple City licenses</h3>
+            <div class="detail-kv">
+              <div>Location</div>
+              <strong id="detail-listing-location">Los Angeles, CA</strong>
+              <div>Price</div>
+              <strong class="attention" id="detail-listing-price">$1,800,000</strong>
+              <div>Cash flow</div>
+              <strong id="detail-listing-cashflow">$625,000</strong>
+              <div>Multiple</div>
+              <strong id="detail-listing-multiple">2.88x</strong>
             </div>
-            <p class="footer-note">
-              This is market context. The UI should not imply it is the same business as the selected
-              lead unless the data actually proves that.
-            </p>
-          </div>
+            <p class="footer-copy" id="detail-listing-copy">Market context only. The product should not imply this listing is the same business as the selected lead unless the data proves it.</p>
+          </section>
         </div>
       </section>
     </main>
+    <script src="./app.js"></script>
   </body>
 </html>

@@ -1,0 +1,5 @@
+scout/venv
+scout/.pytest_cache
+scout/.coverage
+scout/outputs
+scout/tests
