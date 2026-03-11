@@ -16,7 +16,8 @@
 1. `Query`
 2. `Listing`
 3. `Business`
-4. `MarketDataset`
+4. `Lead`
+5. `MarketDataset`
 
 ## ETL Flow
 
@@ -65,10 +66,12 @@ Reference notes:
 scout/scout/pipeline/
 ├── runner.py
 ├── workflow.py
+├── outbound.py
 ├── models/
 │   ├── query.py
 │   ├── listing.py
 │   ├── business.py
+│   ├── lead.py
 │   └── market_dataset.py
 ├── data_sources/
 │   ├── base.py
