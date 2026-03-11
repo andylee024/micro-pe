@@ -1,0 +1,2 @@
+"""Application storage tests."""
+
