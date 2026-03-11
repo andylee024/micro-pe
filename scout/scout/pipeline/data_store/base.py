@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 
 from scout.pipeline.models.business import Business
 from scout.pipeline.models.listing import Listing
+from scout.pipeline.models.query import Query
 
 
 class DataStore(ABC):
@@ -22,3 +23,8 @@ class DataStore(ABC):
     @abstractmethod
     def upsert_listings(self, listings: list[Listing]) -> int:
         raise NotImplementedError
+
+    def record_business_history(self, query: Query, businesses: list[Business]) -> None:
+        """Optional hook for rerun-aware business history/diff persistence."""
+        _ = query
+        _ = businesses

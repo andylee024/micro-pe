@@ -62,6 +62,8 @@ class Workflow:
                     )
                 )
 
+        self.data_store.record_business_history(query, all_businesses)
+
         return MarketDataset(
             query=query,
             businesses=all_businesses,
