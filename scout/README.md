@@ -6,7 +6,7 @@ Scout is now a pipeline-first codebase for SMB acquisition data ETL.
 
 - Data pipeline architecture only (no UI)
 - Canonical concepts:
-  - `Model` (`Query`, `Listing`, `Business`, `MarketDataset`)
+  - `Model` (`Query`, `Listing`, `Business`, `Lead`, `MarketDataset`)
   - `Workflow`
   - `Runner`
   - `DataSource`
@@ -30,6 +30,15 @@ scout run "HVAC businesses in Los Angeles"
 ```
 
 The command executes one workflow run and prints source coverage plus record counts.
+It also emits an outbound queue-strip summary for discovered leads.
+
+## Outbound State Commands
+
+```bash
+scout lead list --location "Los Angeles, CA"
+scout lead transition <lead-id> --status queued
+scout lead queue --location "Los Angeles, CA"
+```
 
 ## Repository Layout
 
