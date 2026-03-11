@@ -177,6 +177,9 @@ class SQLiteDataStore(DataStore):
             """)
         self.conn.commit()
 
+    def close(self) -> None:
+        self.conn.close()
+
     def persist_raw(self, run_id: str, source: str, payload: dict[str, object]) -> str:
         return persist_snapshot(self.raw_root, run_id, source, payload)
 
