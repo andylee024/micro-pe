@@ -1,10 +1,10 @@
 # Scout
 
-Scout is now a pipeline-first codebase for SMB acquisition data ETL.
+Scout is a pipeline-first codebase with a Textual terminal shell for SMB acquisition research.
 
 ## Current Focus
 
-- Data pipeline architecture only (no UI)
+- Data pipeline architecture with a terminal app shell
 - Canonical concepts:
   - `Model` (`Query`, `Listing`, `Business`, `MarketDataset`)
   - `Workflow`
@@ -30,6 +30,13 @@ scout run "HVAC businesses in Los Angeles"
 ```
 
 The command executes one workflow run and prints source coverage plus record counts.
+
+```bash
+scout research "HVAC businesses in Los Angeles"
+```
+
+The command launches the Textual terminal shell with Universe, Queue, Lead Set, History, and
+Command modes backed by pipeline service state.
 
 ## Repository Layout
 

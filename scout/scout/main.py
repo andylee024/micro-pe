@@ -1,11 +1,16 @@
-"""Scout CLI (pipeline-only baseline)."""
+"""Scout CLI entrypoints for pipeline runs and terminal research mode."""
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import click
 
 from scout.pipeline.runner import Runner
 from scout.shared.query_parser import parse_query
+
+if TYPE_CHECKING:
+    from scout.app.terminal import ScoutTerminalApp
 
 
 @click.group()
@@ -49,6 +54,31 @@ def run_pipeline(query: str, max_results: int, no_cache: bool) -> None:
             f"source={item.source} status={item.status} records={item.records} "
             f"duration_ms={item.duration_ms}{suffix}"
         )
+
+
+def create_research_app(query: str, max_results: int, no_cache: bool) -> ScoutTerminalApp:
+    """Build the Textual app from canonical service/state layers."""
+    from scout.app.services import PipelineResearchService
+    from scout.app.state import TerminalStateStore
+    from scout.app.terminal import ScoutTerminalApp
+
+    state_store = TerminalStateStore(service=PipelineResearchService())
+    return ScoutTerminalApp(
+        state_store=state_store,
+        query_text=query,
+        max_results=max_results,
+        use_cache=not no_cache,
+    )
+
+
+@cli.command("research")
+@click.argument("query")
+@click.option("--max-results", default=100, show_default=True, type=int)
+@click.option("--no-cache", is_flag=True, default=False)
+def run_research(query: str, max_results: int, no_cache: bool) -> None:
+    """Launch the Textual research shell for one market query."""
+    app = create_research_app(query=query, max_results=max_results, no_cache=no_cache)
+    app.run()
 
 
 if __name__ == "__main__":
