@@ -3,12 +3,23 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 from scout.pipeline.data_store.base import DataStore
 from scout.pipeline.data_store.raw_snapshot import persist_snapshot
 from scout.pipeline.models.business import Business
+from scout.pipeline.models.lead import Lead
 from scout.pipeline.models.listing import Listing
+
+
+def _normalize_token(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def build_business_lead_id(source: str, name: str, address: str) -> str:
+    """Return deterministic lead_id for a canonical business record."""
+    return f"business:{_normalize_token(source)}:{_normalize_token(name)}:{_normalize_token(address)}"
 
 
 class SQLiteDataStore(DataStore):
@@ -64,6 +75,12 @@ class SQLiteDataStore(DataStore):
                 listed_at TEXT,
                 fetched_at TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS lead_notes (
+                lead_id TEXT PRIMARY KEY,
+                note TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             """
         )
         self.conn.commit()
@@ -110,6 +127,149 @@ class SQLiteDataStore(DataStore):
         )
         self.conn.commit()
         return len(rows)
+
+    def upsert_lead_note(self, lead_id: str, note: str) -> None:
+        lead_id = lead_id.strip()
+        note = note.strip()
+        if not lead_id:
+            raise ValueError("lead_id must be non-empty")
+        if not note:
+            raise ValueError("note must be non-empty")
+
+        self.conn.execute(
+            """
+            INSERT INTO lead_notes (lead_id, note, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(lead_id) DO UPDATE SET
+                note=excluded.note,
+                updated_at=excluded.updated_at
+            """,
+            (lead_id, note, datetime.now(timezone.utc).isoformat()),
+        )
+        self.conn.commit()
+
+    def get_lead_note(self, lead_id: str) -> tuple[str, str] | None:
+        row = self.conn.execute(
+            "SELECT note, updated_at FROM lead_notes WHERE lead_id = ?",
+            (lead_id.strip(),),
+        ).fetchone()
+        if not row:
+            return None
+        return str(row["note"]), str(row["updated_at"])
+
+    def list_leads(
+        self,
+        *,
+        industry: str = "",
+        location: str = "",
+        state: str = "",
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[Lead]:
+        if limit < 1:
+            raise ValueError("limit must be >= 1")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+
+        notes = self._read_notes()
+        leads: list[Lead] = []
+
+        business_rows = self._read_business_rows(industry=industry, location=location, state=state)
+        for row in business_rows:
+            lead_id = build_business_lead_id(row["source"], row["name"], row["address"] or "")
+            note_text, note_ts = notes.get(lead_id, ("", None))
+            leads.append(
+                Lead(
+                    lead_id=lead_id,
+                    lead_type="business",
+                    source=row["source"],
+                    source_record_id="",
+                    name=row["name"],
+                    industry=row["category"] or "",
+                    location=row["location"] or "",
+                    state=row["state"] or "",
+                    address=row["address"] or "",
+                    phone=row["phone"] or "",
+                    website=row["website"] or "",
+                    rating=row["rating"],
+                    reviews=row["reviews"],
+                    note=note_text,
+                    note_updated_at=note_ts,
+                )
+            )
+
+        listing_rows = self._read_listing_rows(industry=industry, location=location, state=state)
+        for row in listing_rows:
+            lead_id = row["id"]
+            note_text, note_ts = notes.get(lead_id, ("", None))
+            leads.append(
+                Lead(
+                    lead_id=lead_id,
+                    lead_type="listing",
+                    source=row["source"],
+                    source_record_id=row["source_id"],
+                    name=row["name"],
+                    industry=row["industry"] or "",
+                    location=row["location"] or "",
+                    state=row["state"] or "",
+                    url=row["url"] or "",
+                    asking_price=row["asking_price"],
+                    annual_revenue=row["annual_revenue"],
+                    cash_flow=row["cash_flow"],
+                    note=note_text,
+                    note_updated_at=note_ts,
+                )
+            )
+
+        leads.sort(key=lambda lead: (lead.name.lower(), lead.lead_type, lead.lead_id))
+        return leads[offset : offset + limit]
+
+    def close(self) -> None:
+        self.conn.close()
+
+    def _read_notes(self) -> dict[str, tuple[str, str | None]]:
+        rows = self.conn.execute("SELECT lead_id, note, updated_at FROM lead_notes").fetchall()
+        return {
+            str(row["lead_id"]): (str(row["note"]), str(row["updated_at"]) if row["updated_at"] else None)
+            for row in rows
+        }
+
+    def _read_business_rows(self, *, industry: str, location: str, state: str) -> list[sqlite3.Row]:
+        clauses = ["1=1"]
+        params: list[str] = []
+        if industry.strip():
+            clauses.append("LOWER(category) LIKE LOWER(?)")
+            params.append(f"%{industry.strip()}%")
+        if location.strip():
+            clauses.append("LOWER(location) LIKE LOWER(?)")
+            params.append(f"%{location.strip()}%")
+        if state.strip():
+            clauses.append("UPPER(state) = UPPER(?)")
+            params.append(state.strip())
+        sql = (
+            "SELECT source, name, address, phone, website, category, location, state, rating, reviews "
+            f"FROM businesses WHERE {' AND '.join(clauses)} ORDER BY name COLLATE NOCASE, id"
+        )
+        return self.conn.execute(sql, params).fetchall()
+
+    def _read_listing_rows(self, *, industry: str, location: str, state: str) -> list[sqlite3.Row]:
+        clauses = ["1=1"]
+        params: list[str] = []
+        if industry.strip():
+            clauses.append("LOWER(industry) LIKE LOWER(?)")
+            params.append(f"%{industry.strip()}%")
+        if location.strip():
+            clauses.append("LOWER(location) LIKE LOWER(?)")
+            params.append(f"%{location.strip()}%")
+        if state.strip():
+            clauses.append("UPPER(state) = UPPER(?)")
+            params.append(state.strip())
+        sql = (
+            "SELECT id, source, source_id, url, name, industry, location, state, asking_price, "
+            "annual_revenue, cash_flow "
+            f"FROM listings WHERE {' AND '.join(clauses)} ORDER BY name COLLATE NOCASE, id"
+        )
+        return self.conn.execute(sql, params).fetchall()
 
     def upsert_listings(self, listings: list[Listing]) -> int:
         if not listings:
