@@ -24,6 +24,7 @@ class Workflow:
         all_listings: list[Listing] = []
         signals: dict[str, object] = {}
         coverage: list[Coverage] = []
+        run_diff = None
 
         for source in self.data_sources:
             started = time.perf_counter()
@@ -62,10 +63,15 @@ class Workflow:
                     )
                 )
 
+        record_run = getattr(self.data_store, "record_run", None)
+        if callable(record_run):
+            run_diff = record_run(query=query, businesses=all_businesses, listings=all_listings)
+
         return MarketDataset(
             query=query,
             businesses=all_businesses,
             listings=all_listings,
             signals=signals,
             coverage=coverage,
+            run_diff=run_diff,
         )
