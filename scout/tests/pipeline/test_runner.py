@@ -16,7 +16,9 @@ def test_runner_builds_query_and_calls_workflow():
     workflow = StubWorkflow()
     runner = Runner(workflow=workflow)
 
-    dataset = runner.run(industry="plumbing", location="Denver, CO", max_results=42, use_cache=False)
+    dataset = runner.run(
+        industry="plumbing", location="Denver, CO", max_results=42, use_cache=False
+    )
 
     assert dataset.query.industry == "plumbing"
     assert dataset.query.location == "Denver, CO"
