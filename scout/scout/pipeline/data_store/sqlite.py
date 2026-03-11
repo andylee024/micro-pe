@@ -36,7 +36,6 @@ def _business_item_key(business: Business) -> str:
             _clean(business.name),
             _clean(business.address),
             _clean(business.location),
-            _clean(business.phone),
         ]
     )
     return f"business:{hashlib.sha1(raw.encode('utf-8')).hexdigest()[:20]}"
