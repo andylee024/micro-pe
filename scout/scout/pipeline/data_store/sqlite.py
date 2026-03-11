@@ -26,10 +26,12 @@ class SQLiteDataStore(DataStore):
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
+    def close(self) -> None:
+        self.conn.close()
+
     def _create_tables(self) -> None:
         cursor = self.conn.cursor()
-        cursor.executescript(
-            """
+        cursor.executescript("""
             CREATE TABLE IF NOT EXISTS businesses (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source TEXT NOT NULL,
@@ -64,8 +66,7 @@ class SQLiteDataStore(DataStore):
                 listed_at TEXT,
                 fetched_at TEXT
             );
-            """
-        )
+            """)
         self.conn.commit()
 
     def persist_raw(self, run_id: str, source: str, payload: dict[str, object]) -> str:

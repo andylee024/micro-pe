@@ -38,10 +38,13 @@ scout = "scout.main:cli"
 [tool.setuptools]
 packages = [
     "scout",
+    "scout.app",
+    "scout.app.storage",
     "scout.pipeline",
     "scout.pipeline.models",
     "scout.pipeline.data_sources",
     "scout.pipeline.data_store",
+    "scout.app",
     "scout.domain",
     "scout.shared",
     "data_sources",
