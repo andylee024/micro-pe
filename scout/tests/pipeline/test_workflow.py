@@ -11,6 +11,7 @@ class MemoryStore(DataStore):
         self.raw = {}
         self.businesses = []
         self.listings = []
+        self.history_runs = []
 
     def persist_raw(self, run_id: str, source: str, payload: dict[str, object]) -> str:
         key = f"{run_id}:{source}"
@@ -24,6 +25,9 @@ class MemoryStore(DataStore):
     def upsert_listings(self, listings: list[Listing]) -> int:
         self.listings.extend(listings)
         return len(listings)
+
+    def record_business_history(self, query: Query, businesses: list[Business]) -> None:
+        self.history_runs.append((query, list(businesses)))
 
 
 class GoodSource(DataSource):
@@ -78,3 +82,9 @@ def test_workflow_fail_soft_and_collects_coverage():
     # Raw persisted only for successful fetch.
     assert any(key.endswith(":good") for key in store.raw)
     assert not any(key.endswith(":bad") for key in store.raw)
+
+    assert len(store.history_runs) == 1
+    history_query, history_businesses = store.history_runs[0]
+    assert history_query is dataset.query
+    assert len(history_businesses) == 1
+    assert history_businesses[0].name == "Acme"
