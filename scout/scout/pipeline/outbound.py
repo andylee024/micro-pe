@@ -309,7 +309,8 @@ class LeadRepository:
 
 def _row_to_lead(row: sqlite3.Row) -> Lead:
     return Lead(
-        id=str(row["lead_id"]),
+        lead_id=str(row["lead_id"]),
+        lead_type="business",
         source=str(row["source"]),
         name=str(row["name"]),
         location=str(row["location"] or ""),
